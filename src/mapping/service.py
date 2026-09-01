@@ -18,22 +18,23 @@ from src.mapping.model import (
     SemanticMapping,
     UnknownPattern,
 )
+from src.mapping.errors import ProviderNotConfiguredError
 
 
 class SemanticMappingService:
     """Service to manage unknown patterns and their semantic mappings using SQLite."""
-    
+
     def __init__(self, db_path: str, ai_mapper: AIMapper | None = None) -> None:
         self.db_path = db_path
         self.ai_mapper = ai_mapper
         init_db(self.db_path)
-        
+
     def add_unknown_pattern(self, pattern: UnknownPattern) -> UnknownPattern:
         """Register a new unknown pattern in SQLite."""
         with get_db(self.db_path) as conn:
             conn.execute(
                 """
-                INSERT INTO unknown_patterns 
+                INSERT INTO unknown_patterns
                 (id, vendor, raw_directive, source_name, section_context, status, first_seen)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -49,7 +50,7 @@ class SemanticMappingService:
             )
             conn.commit()
         return pattern
-        
+
     def get_unknown_pattern(self, pattern_id: str) -> UnknownPattern | None:
         """Retrieve an unknown pattern by ID."""
         with get_db(self.db_path) as conn:
@@ -68,42 +69,42 @@ class SemanticMappingService:
 
     def propose_mapping(self, pattern_id: str) -> SemanticMapping:
         """Request an AI mapping proposal for an unknown pattern.
-        
+
         Security Constraint
         -------------------
         The proposed mapping is ALWAYS forced to a PENDING state, regardless
         of what the AI provider returns. AI is never trusted directly.
         """
         if not self.ai_mapper:
-            raise ValueError("No AIMapper configured.")
-            
+            raise ProviderNotConfiguredError("AI Integration is not configured.")
+
         pattern = self.get_unknown_pattern(pattern_id)
         if not pattern:
             raise ValueError(f"Pattern {pattern_id} not found.")
-            
+
         with get_db(self.db_path) as conn:
             # Check for existing pending mapping
             row = conn.execute(
                 "SELECT * FROM semantic_mappings WHERE pattern_id = ? AND approval_state = ?",
                 (pattern_id, HumanApprovalState.PENDING.value)
             ).fetchone()
-            
+
             if row:
                 return self._row_to_mapping(row)
-            
+
         # Get AI proposal
         mapping = self.ai_mapper.propose_mapping(pattern)
-        
+
         # --- CRITICAL BOUNDARY ENFORCEMENT ---
         mapping.approval_state = HumanApprovalState.PENDING
-        
+
         # Persist mapping proposal
         try:
             with get_db(self.db_path) as conn:
                 conn.execute(
                     """
                     INSERT INTO semantic_mappings
-                    (id, pattern_id, original_syntax, proposed_key, proposed_value, 
+                    (id, pattern_id, original_syntax, proposed_key, proposed_value,
                      confidence, explanation, approval_state, created_at, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
@@ -131,7 +132,7 @@ class SemanticMappingService:
                 if row:
                     return self._row_to_mapping(row)
                 raise  # Unlikely, but re-raise if it wasn't a duplicate pending
-        
+
         return mapping
 
     def _row_to_mapping(self, row: sqlite3.Row) -> SemanticMapping:
@@ -147,7 +148,7 @@ class SemanticMappingService:
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"])
         )
-        
+
     def get_pending_mappings(self) -> list[SemanticMapping]:
         """Retrieve all mappings waiting for human approval."""
         with get_db(self.db_path) as conn:
@@ -156,7 +157,7 @@ class SemanticMappingService:
                 (HumanApprovalState.PENDING.value,)
             ).fetchall()
             return [self._row_to_mapping(row) for row in rows]
-            
+
     def get_mapping(self, mapping_id: str) -> SemanticMapping | None:
         """Retrieve a specific mapping by ID."""
         with get_db(self.db_path) as conn:
@@ -164,23 +165,122 @@ class SemanticMappingService:
             if not row:
                 return None
             return self._row_to_mapping(row)
-        
+
+    def get_approved_mappings(self, vendor: str) -> list[SemanticMapping]:
+        """Retrieve all approved semantic mappings for a vendor."""
+        with get_db(self.db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT sm.*
+                FROM semantic_mappings sm
+                JOIN unknown_patterns up ON sm.pattern_id = up.id
+                WHERE sm.approval_state = ? AND up.vendor = ?
+                """,
+                (HumanApprovalState.APPROVED.value, vendor)
+            ).fetchall()
+            return [self._row_to_mapping(row) for row in rows]
+
+    def get_known_raw_directives(self, vendor: str) -> set[str]:
+        """Retrieve raw directives already recorded in unknown_patterns for a vendor."""
+        with get_db(self.db_path) as conn:
+            rows = conn.execute(
+                "SELECT raw_directive FROM unknown_patterns WHERE vendor = ?",
+                (vendor,)
+            ).fetchall()
+            return {r["raw_directive"] for r in rows}
+
+    def _build_patterns_query(self, vendor: str | None = None, status: str | None = None) -> tuple[str, list]:
+        query = " FROM unknown_patterns WHERE 1=1"
+        params = []
+        if vendor:
+            query += " AND vendor = ?"
+            params.append(vendor)
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+        return query, params
+
+    def count_unknown_patterns(self, vendor: str | None = None, status: str | None = None) -> int:
+        """Count unknown patterns matching the filters."""
+        query_base, params = self._build_patterns_query(vendor, status)
+        with get_db(self.db_path) as conn:
+            row = conn.execute("SELECT COUNT(*) as count" + query_base, params).fetchone()
+            return row["count"]
+
+    def get_unknown_patterns(
+        self,
+        vendor: str | None = None,
+        status: str | None = None,
+        sort_by: str = "first_seen",
+        sort_dir: str = "desc",
+        limit: int = 100,
+        offset: int = 0
+    ) -> list[UnknownPattern]:
+        """Retrieve unknown patterns with filtering, deterministic sorting, and pagination."""
+        # Whitelist safe sort fields
+        safe_sort_fields = {"first_seen", "vendor", "status"}
+        if sort_by not in safe_sort_fields:
+            sort_by = "first_seen"
+
+        safe_sort_dirs = {"asc", "desc"}
+        if sort_dir.lower() not in safe_sort_dirs:
+            sort_dir = "desc"
+
+        query_base, params = self._build_patterns_query(vendor, status)
+
+        # We can safely interpolate sort_by and sort_dir since they are strictly validated against whitelists
+        query = f"SELECT *{query_base} ORDER BY {sort_by} {sort_dir} LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+        with get_db(self.db_path) as conn:
+            rows = conn.execute(query, params).fetchall()
+
+            patterns = []
+            for row in rows:
+                patterns.append(UnknownPattern(
+                    id=row["id"],
+                    vendor=row["vendor"],
+                    raw_directive=row["raw_directive"],
+                    source_name=row["source_name"],
+                    section_context=row["section_context"],
+                    status=PatternStatus(row["status"]),
+                    first_seen=datetime.fromisoformat(row["first_seen"])
+                ))
+            return patterns
+
+    def add_unknown_patterns_batch(self, patterns: list[UnknownPattern]) -> None:
+        """Batch insert unknown patterns ignoring duplicates."""
+        if not patterns:
+            return
+
+        with get_db(self.db_path) as conn:
+            conn.executemany(
+                """
+                INSERT OR IGNORE INTO unknown_patterns
+                (id, vendor, raw_directive, source_name, section_context, status, first_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        p.id, p.vendor, p.raw_directive, p.source_name,
+                        p.section_context, p.status.value, p.first_seen.isoformat()
+                    )
+                    for p in patterns
+                ]
+            )
+            conn.commit()
+
     def approve_mapping(self, mapping_id: str) -> SemanticMapping:
-        """Human approval of a proposed mapping.
-        
-        Only after this step can the mapping be utilized by the
-        deterministic compliance engine in future scans.
-        """
+        """Human approval of a proposed mapping."""
         with get_db(self.db_path) as conn:
             row = conn.execute("SELECT * FROM semantic_mappings WHERE id = ?", (mapping_id,)).fetchone()
             if not row:
                 raise ValueError(f"Mapping {mapping_id} not found.")
-                
+
             current_state = HumanApprovalState(row["approval_state"])
             if current_state != HumanApprovalState.PENDING:
                 raise ValueError(f"Cannot approve mapping in state: {current_state.name}")
-                
-            # Transactionally update mapping and pattern
+
             conn.execute(
                 "UPDATE semantic_mappings SET approval_state = ?, updated_at = ? WHERE id = ?",
                 (HumanApprovalState.APPROVED.value, datetime.now(timezone.utc).isoformat(), mapping_id)
@@ -190,22 +290,20 @@ class SemanticMappingService:
                 (PatternStatus.MAPPED.value, row["pattern_id"])
             )
             conn.commit()
-            
-        # Return updated mapping
+
         return self.get_mapping(mapping_id)
-        
+
     def reject_mapping(self, mapping_id: str) -> SemanticMapping:
         """Human rejection of a proposed mapping."""
         with get_db(self.db_path) as conn:
             row = conn.execute("SELECT * FROM semantic_mappings WHERE id = ?", (mapping_id,)).fetchone()
             if not row:
                 raise ValueError(f"Mapping {mapping_id} not found.")
-                
+
             current_state = HumanApprovalState(row["approval_state"])
             if current_state != HumanApprovalState.PENDING:
                 raise ValueError(f"Cannot reject mapping in state: {current_state.name}")
-                
-            # Transactionally update mapping and pattern
+
             conn.execute(
                 "UPDATE semantic_mappings SET approval_state = ?, updated_at = ? WHERE id = ?",
                 (HumanApprovalState.REJECTED.value, datetime.now(timezone.utc).isoformat(), mapping_id)
@@ -215,6 +313,5 @@ class SemanticMappingService:
                 (PatternStatus.REJECTED.value, row["pattern_id"])
             )
             conn.commit()
-            
-        # Return updated mapping
+
         return self.get_mapping(mapping_id)

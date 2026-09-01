@@ -15,19 +15,28 @@ from pydantic import BaseModel, Field
 
 class UnknownPatternSchema(BaseModel):
     """Schema representing an unrecognized configuration directive."""
-    
-    id: str
-    vendor: str
-    raw_directive: str
-    source_name: str | None
-    section_context: str | None
-    status: str
+
+    id: Annotated[str, Field(max_length=64)]
+    vendor: Annotated[str, Field(max_length=32)]
+    raw_directive: Annotated[str, Field(max_length=1024)]
+    source_name: Annotated[str | None, Field(max_length=255)] = None
+    section_context: Annotated[str | None, Field(max_length=512)] = None
+    status: Annotated[str, Field(max_length=32)]
     first_seen: datetime
+
+
+class PaginatedUnknownPatternSchema(BaseModel):
+    """Schema for paginated discovery queue response."""
+
+    items: list[UnknownPatternSchema]
+    total: int
+    limit: int
+    offset: int
 
 
 class SemanticMappingSchema(BaseModel):
     """Schema representing an AI-proposed semantic mapping."""
-    
+
     id: str
     pattern_id: str
     original_syntax: str
@@ -42,7 +51,7 @@ class SemanticMappingSchema(BaseModel):
 
 class ProposeMappingRequest(BaseModel):
     """Request body for generating a mapping proposal."""
-    
+
     pattern_id: Annotated[
         str,
         Field(description="ID of the unknown pattern to map."),

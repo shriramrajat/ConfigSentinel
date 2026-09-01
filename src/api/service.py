@@ -42,6 +42,13 @@ from src.compliance.registry import RULE_REGISTRY
 from src.ingestion.detector import detect_vendor
 from src.parsers.cisco import parse_cisco
 from src.parsers.juniper import parse_juniper
+from src.mapping.service import SemanticMappingService
+from src.mapping.model import SemanticMapping, UnknownPattern
+import os
+from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -95,8 +102,25 @@ def run_audit(request: AuditRequest) -> AuditResponse:
     # This is a label only — it is NOT a filesystem path.
     normalized.source_file = request.source_name
 
+    # --- Phase 5.1: Semantic Injection Layer --------------------------------
+    mapping_svc = None
+    try:
+        db_path = os.getenv("MAPPINGS_DB_PATH", str(Path(__file__).parent.parent.parent / "mappings.db"))
+        mapping_svc = SemanticMappingService(db_path=db_path)
+        approved_mappings = mapping_svc.get_approved_mappings(normalized.vendor)
+        normalized = _apply_semantic_mappings(normalized, approved_mappings)
+    except Exception as e:
+        logger.error("Failed to inject semantic mappings: %s", str(e))
+
     # --- Compliance engine --------------------------------------------------
     results: list[ComplianceResult] = audit(normalized, RULE_REGISTRY)
+
+    # --- Phase 6.1: Unknown Directive Discovery -----------------------------
+    try:
+        if mapping_svc:
+            _discover_unknown_patterns(normalized, results, mapping_svc)
+    except Exception as e:
+        logger.error("Failed to discover unknown patterns: %s", str(e))
 
     # --- Convert to schemas -------------------------------------------------
     result_schemas = [_convert_result(r) for r in results]
@@ -111,8 +135,103 @@ def run_audit(request: AuditRequest) -> AuditResponse:
 
 
 # ---------------------------------------------------------------------------
-# Internal converters
+# Internal converters and helpers
 # ---------------------------------------------------------------------------
+
+def _apply_semantic_mappings(
+    config: NormalizedConfig, approved_mappings: list[SemanticMapping]
+) -> NormalizedConfig:
+    """Inject approved semantic mappings into the NormalizedConfig."""
+    if not approved_mappings:
+        return config
+
+    mapping_dict: dict[str, SemanticMapping] = {}
+    ambiguous_syntax: set[str] = set()
+
+    for mapping in approved_mappings:
+        syntax = mapping.original_syntax.strip()
+        if syntax in ambiguous_syntax:
+            continue
+        if syntax in mapping_dict:
+            existing = mapping_dict[syntax]
+            if (existing.proposed_key != mapping.proposed_key or
+                existing.proposed_value != mapping.proposed_value):
+                ambiguous_syntax.add(syntax)
+                del mapping_dict[syntax]
+        else:
+            mapping_dict[syntax] = mapping
+
+    if not mapping_dict:
+        return config
+
+    def _apply_to_item(item):
+        syntax = item.raw_line.strip()
+        if syntax in mapping_dict:
+            mapping = mapping_dict[syntax]
+            item.key = mapping.proposed_key
+            item.value = mapping.proposed_value
+
+    for item in config.global_items:
+        _apply_to_item(item)
+    for section in config.sections:
+        for item in section.items:
+            _apply_to_item(item)
+
+    return config
+
+def _discover_unknown_patterns(
+    config: NormalizedConfig,
+    results: list[ComplianceResult],
+    mapping_svc: SemanticMappingService
+) -> None:
+    """Passively discover unmapped configuration directives and persist them."""
+    if config.vendor == "unknown":
+        return
+
+    # 1. Collect evaluated lines (Evidence subtraction)
+    recognized_lines = set()
+    for result in results:
+        for evidence in result.evidence:
+            for raw_line in evidence.raw_lines:
+                recognized_lines.add(raw_line.strip())
+
+    # 2. Find parsed lines that were not recognized
+    candidates_by_line: dict[str, UnknownPattern] = {}
+
+    def _check_item(item, context: str | None = None):
+        line = item.raw_line.strip()
+        if not line:
+            return
+        if line not in recognized_lines and line not in candidates_by_line:
+            candidates_by_line[line] = UnknownPattern(
+                vendor=config.vendor,
+                raw_directive=item.raw_line,  # Preserve original, don't strip
+                source_name=config.source_file,
+                section_context=context
+            )
+
+    for item in config.global_items:
+        _check_item(item)
+
+    for section in config.sections:
+        for item in section.items:
+            _check_item(item, context=section.name)
+
+    if not candidates_by_line:
+        return
+
+    # 3. Deduplicate against existing patterns in DB
+    existing = mapping_svc.get_known_raw_directives(config.vendor)
+
+    new_patterns = []
+    for line, pattern in candidates_by_line.items():
+        if line not in existing and pattern.raw_directive not in existing:
+            new_patterns.append(pattern)
+
+    # 4. Persist
+    if new_patterns:
+        mapping_svc.add_unknown_patterns_batch(new_patterns)
+
 
 
 def _convert_result(result: ComplianceResult) -> ComplianceResultSchema:
