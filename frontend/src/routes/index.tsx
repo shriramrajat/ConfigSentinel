@@ -23,16 +23,14 @@
 import { Route, Routes } from 'react-router-dom'
 import { RootLayout } from '../layouts/RootLayout'
 import { Home } from '../pages/Home'
+import { DiscoveryQueue } from '../pages/DiscoveryQueue'
 
 export function AppRoutes() {
   return (
     <Routes>
       <Route element={<RootLayout />}>
         <Route index element={<Home />} />
-        {/*
-         * Add feature routes here as they are built, e.g.:
-         * <Route path="audit" element={<Audit />} />
-         */}
+        <Route path="discovery" element={<DiscoveryQueue />} />
       </Route>
     </Routes>
   )

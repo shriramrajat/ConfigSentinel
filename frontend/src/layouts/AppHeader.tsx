@@ -16,6 +16,7 @@
  */
 
 import { useVersion } from '../hooks/useVersion'
+import { NavLink } from 'react-router-dom'
 
 export function AppHeader() {
   const { data: version, isLoading, isError } = useVersion()
@@ -95,6 +96,41 @@ export function AppHeader() {
             </span>
           </div>
         </div>
+
+        {/* Center - Navigation */}
+        <nav style={{ display: 'flex', gap: '1.5rem' }}>
+          <NavLink
+            to="/"
+            style={({ isActive }) => ({
+              fontFamily: 'var(--cs-font-sans)',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: isActive ? 'var(--cs-accent)' : 'var(--cs-text-muted)',
+              borderBottom: isActive ? '2px solid var(--cs-accent)' : '2px solid transparent',
+              paddingBottom: '0.25rem',
+              transition: 'color 0.2s',
+            })}
+            end
+          >
+            Audit
+          </NavLink>
+          <NavLink
+            to="/discovery"
+            style={({ isActive }) => ({
+              fontFamily: 'var(--cs-font-sans)',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: isActive ? 'var(--cs-accent)' : 'var(--cs-text-muted)',
+              borderBottom: isActive ? '2px solid var(--cs-accent)' : '2px solid transparent',
+              paddingBottom: '0.25rem',
+              transition: 'color 0.2s',
+            })}
+          >
+            Discovery Queue
+          </NavLink>
+        </nav>
 
         {/* Right — backend status */}
         <BackendStatus isLoading={isLoading} isError={isError} version={version?.version} />

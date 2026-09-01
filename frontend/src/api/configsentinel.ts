@@ -19,6 +19,8 @@ import type {
   AuditResponse,
   HealthResponse,
   VersionResponse,
+  PaginatedUnknownPattern,
+  SemanticMapping,
 } from '../types/api'
 
 // ---------------------------------------------------------------------------
@@ -76,5 +78,41 @@ export async function auditConfig(request: AuditRequest): Promise<AuditResponse>
   return apiFetch<AuditResponse>('/api/v1/audit', {
     method: 'POST',
     body: JSON.stringify(request),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Discovery & Mapping
+// ---------------------------------------------------------------------------
+
+export async function getDiscoveredPatterns(params: { vendor?: string; status?: string; limit?: number; offset?: number; sort_by?: string; sort_dir?: string }): Promise<PaginatedUnknownPattern> {
+  const query = new URLSearchParams()
+  if (params.vendor) query.append("vendor", params.vendor)
+  if (params.status) query.append("status", params.status)
+  if (params.limit !== undefined) query.append("limit", params.limit.toString())
+  if (params.offset !== undefined) query.append("offset", params.offset.toString())
+  if (params.sort_by) query.append("sort_by", params.sort_by)
+  if (params.sort_dir) query.append("sort_dir", params.sort_dir)
+  return apiFetch<PaginatedUnknownPattern>(`/api/v1/mappings/discovered?${query.toString()}`)
+}
+
+export async function proposeMapping(patternId: string): Promise<SemanticMapping> {
+  return apiFetch<SemanticMapping>("/api/v1/mappings/propose", {
+    method: "POST",
+    body: JSON.stringify({ pattern_id: patternId }),
+  })
+}
+
+export async function approveMapping(mappingId: string): Promise<SemanticMapping> {
+  return apiFetch<SemanticMapping>(`/api/v1/mappings/${mappingId}/approve`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  })
+}
+
+export async function rejectMapping(mappingId: string): Promise<SemanticMapping> {
+  return apiFetch<SemanticMapping>(`/api/v1/mappings/${mappingId}/reject`, {
+    method: "POST",
+    body: JSON.stringify({}),
   })
 }

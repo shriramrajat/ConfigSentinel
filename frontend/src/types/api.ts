@@ -195,6 +195,40 @@ export interface VersionResponse {
 // ---------------------------------------------------------------------------
 
 /** Inner error object returned by the backend on all error responses. */
+// ---------------------------------------------------------------------------
+// Mapping & Discovery types
+// ---------------------------------------------------------------------------
+
+export interface UnknownPattern {
+  id: string
+  vendor: string
+  raw_directive: string
+  source_name: string | null
+  section_context: string | null
+  status: 'PENDING' | 'MAPPED' | 'REJECTED'
+  first_seen: string
+}
+
+export interface PaginatedUnknownPattern {
+  items: UnknownPattern[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface SemanticMapping {
+  id: string
+  pattern_id: string
+  original_syntax: string
+  proposed_key: string
+  proposed_value: string | null
+  explanation: string
+  confidence: number
+  approval_state: 'PENDING' | 'APPROVED' | 'REJECTED'
+  created_at: string
+  updated_at: string
+}
+
 export interface ErrorDetail {
   /**
    * Machine-readable error code.
