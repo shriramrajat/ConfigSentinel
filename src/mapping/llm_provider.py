@@ -86,7 +86,8 @@ class LLMMapper(AIMapper):
             data=json.dumps(payload).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}"
+                "Authorization": f"Bearer {self.api_key}",
+                "User-Agent": "ConfigSentinel/1.0"
             },
             method="POST"
         )
