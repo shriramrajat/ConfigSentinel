@@ -127,7 +127,7 @@ Expected output:
 
 ---
 
-## Detailed Documentation
+## Detailed Documentation.
 
 | Document | Contents |
 |---|---|
