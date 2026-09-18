@@ -45,6 +45,7 @@ from src.parsers.cisco import parse_cisco
 from src.parsers.juniper import parse_juniper
 from src.mapping.service import SemanticMappingService
 from src.mapping.model import SemanticMapping, UnknownPattern
+from src.risk.engine import compute_risk
 import os
 from pathlib import Path
 import logging
@@ -237,6 +238,7 @@ def _discover_unknown_patterns(
 
 def _convert_result(result: ComplianceResult) -> ComplianceResultSchema:
     """Convert a ComplianceResult dataclass → ComplianceResultSchema."""
+    risk_score, risk_level = compute_risk(result)
     return ComplianceResultSchema(
         control_id=result.control_id,
         control_name=result.control_name,
@@ -266,6 +268,8 @@ def _convert_result(result: ComplianceResult) -> ComplianceResultSchema:
             for r in result.remediations
         ],
         framework_refs=list(result.framework_refs),
+        risk_score=risk_score,
+        risk_level=risk_level.value,
     )
 
 

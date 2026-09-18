@@ -190,6 +190,25 @@ class ComplianceResultSchema(BaseModel):
         list[str],
         Field(description="Compliance framework references (e.g. CIS, NIST)."),
     ]
+    risk_score: Annotated[
+        float,
+        Field(
+            description=(
+                "Deterministic risk score in [0.0, 1.0]. "
+                "0.0 for PASS/NOT_APPLICABLE/NEEDS_REVIEW. "
+                "Computed as severity_base × confidence_factor for FAIL results."
+            )
+        ),
+    ] = 0.0
+    risk_level: Annotated[
+        str,
+        Field(
+            description=(
+                "Discrete risk level: critical | high | medium | low | info. "
+                "Derived from risk_score. Always 'info' for non-FAIL results."
+            )
+        ),
+    ] = "info"
 
 
 class FrameworkSummary(BaseModel):
