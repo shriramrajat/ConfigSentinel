@@ -34,11 +34,19 @@ same order.
 from __future__ import annotations
 
 from src.compliance.rules.aaa import AaaRule
+from src.compliance.rules.banner import BannerRule
 from src.compliance.rules.base import ComplianceRule
 from src.compliance.rules.exec_timeout import ExecTimeoutRule
+from src.compliance.rules.http_server import HttpServerRule
+from src.compliance.rules.logging_rule import LoggingRule
+from src.compliance.rules.ntp import NtpRule
 from src.compliance.rules.pwd_encryption import PwdEncryptionRule
+from src.compliance.rules.snmp import SnmpRule
+from src.compliance.rules.ssh_auth_retries import SshAuthRetriesRule
 from src.compliance.rules.ssh_version import SshVersionRule
 from src.compliance.rules.telnet_disabled import TelnetDisabledRule
+from src.compliance.rules.timezone import TimezoneRule
+from src.compliance.rules.unnecessary_services import UnnecessaryServicesRule
 
 #: Ordered list of all active compliance rule instances.
 #:
@@ -46,9 +54,24 @@ from src.compliance.rules.telnet_disabled import TelnetDisabledRule
 #: by :func:`~compliance.engine.audit`.  Each rule produces exactly one
 #: :class:`~compliance.model.ComplianceResult`.
 RULE_REGISTRY: list[ComplianceRule] = [
+    # SSH controls
     SshVersionRule(),
+    SshAuthRetriesRule(),
+    # Remote access
     TelnetDisabledRule(),
+    # Session management
     ExecTimeoutRule(),
+    # Authentication & authorization
     PwdEncryptionRule(),
     AaaRule(),
+    # Time & logging
+    NtpRule(),
+    LoggingRule(),
+    TimezoneRule(),
+    # Network services
+    HttpServerRule(),
+    SnmpRule(),
+    UnnecessaryServicesRule(),
+    # UI / access policy
+    BannerRule(),
 ]

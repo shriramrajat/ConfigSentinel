@@ -136,8 +136,10 @@ class TestAuditCisco:
 
     def test_summary_has_correct_total_controls(self, client: TestClient) -> None:
         data = _audit(client, CISCO_CONF).json()
-        # 5 rules in RULE_REGISTRY: SSH-001, TLN-001, EXEC-001, PWD-001, AAA-001
-        assert data["summary"]["total_controls"] == 5
+        # Total controls must equal the number of rules in RULE_REGISTRY.
+        # Update this comment if the registry size changes intentionally.
+        from src.compliance.registry import RULE_REGISTRY
+        assert data["summary"]["total_controls"] == len(RULE_REGISTRY)
 
     def test_summary_counts_are_non_negative(self, client: TestClient) -> None:
         summary = _audit(client, CISCO_CONF).json()["summary"]
@@ -187,9 +189,10 @@ class TestAuditJuniper:
         data = _audit(client, JUNIPER_CONF).json()
         assert data["summary"]["hostname"] == "LAB-SRX-01"
 
-    def test_summary_has_five_controls(self, client: TestClient) -> None:
+    def test_summary_has_correct_total_controls(self, client: TestClient) -> None:
         data = _audit(client, JUNIPER_CONF).json()
-        assert data["summary"]["total_controls"] == 5
+        from src.compliance.registry import RULE_REGISTRY
+        assert data["summary"]["total_controls"] == len(RULE_REGISTRY)
 
     def test_summary_counts_sum_to_total(self, client: TestClient) -> None:
         summary = _audit(client, JUNIPER_CONF).json()["summary"]
