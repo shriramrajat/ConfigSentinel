@@ -85,9 +85,10 @@ class EvidenceSchema(BaseModel):
     Traceability note
     -----------------
     ``raw_lines`` contains the verbatim configuration line(s) that the rule
-    used to make its decision.  These are text snippets, NOT line numbers.
-    The backend does not track byte offsets or line numbers in the parsed
-    output; ``raw_lines`` is the deepest traceability the system can provide.
+    used to make its decision.
+    ``line_number`` is the 1-based line number in the original configuration
+    file, when available.  It is ``null`` for rules that aggregate across
+    multiple lines or when the parser did not produce line information.
     """
 
     control_id: Annotated[str, Field(description="Control this evidence belongs to (e.g. 'SSH-001').")]
@@ -117,6 +118,17 @@ class EvidenceSchema(BaseModel):
         str,
         Field(description="Human-readable explanation of why the rule reached its conclusion."),
     ]
+    line_number: Annotated[
+        int | None,
+        Field(
+            default=None,
+            description=(
+                "1-based line number in the original configuration file where the "
+                "relevant directive was found.  Null when not available (absence evidence "
+                "or multi-line aggregation)."
+            ),
+        ),
+    ] = None
 
 
 class RemediationSchema(BaseModel):

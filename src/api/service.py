@@ -252,6 +252,7 @@ def _convert_result(result: ComplianceResult) -> ComplianceResultSchema:
                 observed=e.observed,
                 expected=e.expected,
                 note=e.note,
+                line_number=e.line_number,
             )
             for e in result.evidence
         ],

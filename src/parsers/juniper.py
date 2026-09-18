@@ -132,16 +132,16 @@ def _make_item(line: _RawLine) -> ConfigItem | None:
     # Leaf with value:  key value;
     m = _LEAF_RE.match(text)
     if m:
-        return ConfigItem(key=m.group("key"), value=m.group("value"), raw_line=line.text)
+        return ConfigItem(key=m.group("key"), value=m.group("value"), raw_line=line.text, line_number=line.number)
 
     # Flag / presence statement:  keyword;
     m = _FLAG_RE.match(text)
     if m:
-        return ConfigItem(key=m.group("key"), value=None, raw_line=line.text)
+        return ConfigItem(key=m.group("key"), value=None, raw_line=line.text, line_number=line.number)
 
     # Fallback: treat whole stripped text as key with no value.
     # Keeps unusual directives from crashing the parser.
-    return ConfigItem(key=text, value=None, raw_line=line.text)
+    return ConfigItem(key=text, value=None, raw_line=line.text, line_number=line.number)
 
 
 def _extract_hostname(lines: list[_RawLine]) -> str | None:

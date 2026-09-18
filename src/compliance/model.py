@@ -87,6 +87,7 @@ class Evidence:
     observed: str | None
     expected: str | None
     note: str
+    line_number: int | None = None
 
 
 @dataclass(frozen=True)

@@ -87,8 +87,8 @@ def _make_item(line: _RawLine) -> ConfigItem:
     text = line.text.strip()
     parts = text.split(None, 1)
     if len(parts) == 1:
-        return ConfigItem(key=parts[0], value=None, raw_line=line.text)
-    return ConfigItem(key=parts[0], value=parts[1], raw_line=line.text)
+        return ConfigItem(key=parts[0], value=None, raw_line=line.text, line_number=line.number)
+    return ConfigItem(key=parts[0], value=parts[1], raw_line=line.text, line_number=line.number)
 
 
 def _is_noise(line: _RawLine) -> bool:

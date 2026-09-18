@@ -50,6 +50,7 @@ class ConfigItem:
     value: str | None
     raw_line: str
     path: tuple[str, ...] = field(default_factory=tuple)
+    line_number: int | None = None
 
 
 @dataclass
