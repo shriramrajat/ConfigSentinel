@@ -23,8 +23,10 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from src.api.config import API_VERSION, PRODUCT_DESCRIPTION, PRODUCT_NAME
-from src.api.schemas import AuditRequest, AuditResponse, ErrorResponse
+from src.api.schemas import AuditRequest, AuditResponse, BulkAuditRequest, BulkAuditResponse, ErrorResponse
 from src.api.service import run_audit
+from src.api.errors import InvalidInputError
+from fastapi.responses import JSONResponse as _JSONResponse
 
 router = APIRouter()
 
@@ -103,3 +105,68 @@ def audit_config(request: AuditRequest) -> AuditResponse:
     The frontend must not duplicate any compliance decisions.
     """
     return run_audit(request)
+
+
+# ---------------------------------------------------------------------------
+# Bulk Audit
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/api/v1/audits/bulk",
+    response_model=BulkAuditResponse,
+    summary="Bulk compliance audit",
+    description=(
+        "Submit multiple device configurations in a single request. "
+        "Each item is audited independently. Partial failures do not abort the batch — "
+        "failed items carry an 'error' field. The overall HTTP status is 200 if any item "
+        "succeeds, even when some items fail."
+    ),
+    tags=["Audit"],
+    responses={
+        200: {"description": "Bulk audit completed (may include per-item errors).", "model": BulkAuditResponse},
+        422: {"description": "Request body failed schema validation.", "model": ErrorResponse},
+        500: {"description": "Unexpected internal error.", "model": ErrorResponse},
+    },
+)
+def bulk_audit(request: BulkAuditRequest) -> BulkAuditResponse:
+    """Run a compliance audit on each config in the batch.
+
+    Items are processed sequentially.  Each item produces either an AuditResponse
+    or an error message.  The batch response always returns HTTP 200; per-item
+    failures are surfaced in the ``error`` field of the corresponding result item.
+    """
+    from src.api.schemas import BulkAuditResultItem
+    results = []
+    for item in request.configs:
+        try:
+            audit_resp = run_audit(AuditRequest(
+                config_text=item.config_text,
+                source_name=item.source_name,
+            ))
+            results.append(BulkAuditResultItem(
+                source_name=item.source_name,
+                status="ok",
+                result=audit_resp,
+                error=None,
+            ))
+        except InvalidInputError as exc:
+            results.append(BulkAuditResultItem(
+                source_name=item.source_name,
+                status="error",
+                result=None,
+                error=str(exc),
+            ))
+        except Exception as exc:  # noqa: BLE001
+            results.append(BulkAuditResultItem(
+                source_name=item.source_name,
+                status="error",
+                result=None,
+                error=f"Internal error: {type(exc).__name__}",
+            ))
+    return BulkAuditResponse(
+        total=len(results),
+        succeeded=sum(1 for r in results if r.status == "ok"),
+        failed=sum(1 for r in results if r.status == "error"),
+        results=results,
+    )

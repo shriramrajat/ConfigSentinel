@@ -295,3 +295,73 @@ class ErrorResponse(BaseModel):
     """Envelope for all error responses."""
 
     error: ErrorDetail
+
+
+# ---------------------------------------------------------------------------
+# Bulk Audit schemas
+# ---------------------------------------------------------------------------
+
+
+class BulkAuditConfigItem(BaseModel):
+    """A single configuration entry in a bulk audit request."""
+
+    config_text: Annotated[
+        str,
+        Field(description="Raw configuration text for this device.", min_length=1),
+    ]
+    source_name: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description="Optional label for this device (e.g. hostname or filename).",
+        ),
+    ] = None
+
+
+class BulkAuditRequest(BaseModel):
+    """Request body for POST /api/v1/audits/bulk.
+
+    Submits 1–50 device configurations for parallel auditing.
+    """
+
+    configs: Annotated[
+        list[BulkAuditConfigItem],
+        Field(
+            description="List of device configurations to audit.",
+            min_length=1,
+            max_length=50,
+        ),
+    ]
+
+
+class BulkAuditResultItem(BaseModel):
+    """Result for a single configuration in a bulk audit."""
+
+    source_name: Annotated[
+        str | None,
+        Field(description="The source_name from the request item, if provided."),
+    ]
+    status: Annotated[
+        str,
+        Field(description="'ok' if audit succeeded, 'error' if this item failed."),
+    ]
+    result: Annotated[
+        AuditResponse | None,
+        Field(description="Full audit result, or null if status is 'error'."),
+    ] = None
+    error: Annotated[
+        str | None,
+        Field(description="Error message if status is 'error', null otherwise."),
+    ] = None
+
+
+class BulkAuditResponse(BaseModel):
+    """Response for POST /api/v1/audits/bulk."""
+
+    total: Annotated[int, Field(description="Total number of configs submitted.")]
+    succeeded: Annotated[int, Field(description="Number of successfully audited configs.")]
+    failed: Annotated[int, Field(description="Number of configs that failed to audit.")]
+    results: Annotated[
+        list[BulkAuditResultItem],
+        Field(description="Per-item audit results in submission order."),
+    ]
