@@ -92,11 +92,15 @@ def run_audit(request: AuditRequest) -> AuditResponse:
         normalized = parse_cisco(config_text)
     elif vendor == "juniper":
         normalized = parse_juniper(config_text)
+    elif vendor in ("arista", "panos", "fortinet"):
+        # Detected but no full parser yet: use best-effort Cisco structural
+        # parser and override the vendor label so compliance rules correctly
+        # return NOT_APPLICABLE.  This is honest — we identify the device
+        # type but do not pretend to fully audit it.
+        _parsed = parse_cisco(config_text)
+        normalized = dataclasses.replace(_parsed, vendor=vendor)
     else:
-        # Unknown vendor: still run the engine — rules will return NOT_APPLICABLE.
-        # This is the correct behaviour; rules self-select based on vendor.
-        # We attempt a best-effort cisco parse for structural extraction,
-        # then override vendor to "unknown" so rules correctly return NOT_APPLICABLE.
+        # Unknown vendor: same best-effort parse, vendor → "unknown".
         _parsed = parse_cisco(config_text)
         normalized = dataclasses.replace(_parsed, vendor="unknown")
 

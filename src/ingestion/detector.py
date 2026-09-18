@@ -1,7 +1,7 @@
 from typing import Literal
 
 
-Vendor = Literal["cisco", "juniper", "unknown"]
+Vendor = Literal["cisco", "juniper", "arista", "panos", "fortinet", "unknown"]
 
 # ---------------------------------------------------------------------------
 # Juniper JunOS marker patterns
@@ -58,13 +58,72 @@ _CISCO_LOWER_MARKERS = (
 
 
 
+# ---------------------------------------------------------------------------
+# Arista EOS marker patterns
+# ---------------------------------------------------------------------------
+#
+# EOS uses IOS-like flat config syntax but has distinct markers:
+#   "eos sdk" / "aaa root" / "daemon"
+# We check for patterns that unambiguously identify EOS.
+# ---------------------------------------------------------------------------
+
+_ARISTA_LOWER_MARKERS = (
+    "aaa root secret",       # EOS-specific privileged credential format
+    "management api http-commands",  # EOS REST API management block
+    "daemon ",               # EOS extensibility daemon directive
+    "event-handler ",        # EOS event-handler
+    "on-startup",            # EOS event-handler sub-command
+)
+
+# ---------------------------------------------------------------------------
+# Palo Alto PAN-OS marker patterns
+# ---------------------------------------------------------------------------
+#
+# PAN-OS configuration uses XML or a set-command format with distinctive
+# prefixes not found in other vendors.
+# ---------------------------------------------------------------------------
+
+_PANOS_LOWER_MARKERS = (
+    "set deviceconfig system hostname",  # PAN-OS set-command form
+    "set address ",          # PAN-OS address object
+    "set security policy ",  # PAN-OS security policy
+    "set network interface ethernet",
+    "<config version=",      # PAN-OS XML config
+    "<mgt-config>",
+    "<deviceconfig>",
+)
+
+# ---------------------------------------------------------------------------
+# Fortinet FortiOS marker patterns
+# ---------------------------------------------------------------------------
+#
+# FortiOS uses a block-based config with distinctive 'config' / 'set' / 'end'
+# keywords in a non-IOS context.
+# ---------------------------------------------------------------------------
+
+_FORTIOS_LOWER_MARKERS = (
+    "config system global",  # FortiOS global config block
+    "config system interface",
+    "config firewall policy",
+    "config vpn ssl settings",
+    "set admintimeout ",     # FortiOS-specific admin timeout
+    "set admin-sport ",      # FortiOS HTTPS admin port
+)
+
+
+
 def detect_vendor(config: str) -> Vendor:
     """Detect the vendor from configuration content.
 
-    Uses a first-match scan over all lines.  Cisco markers are evaluated
-    before Juniper markers, so an ambiguous config that contains markers for
-    both resolves to ``"cisco"`` — this preserves the prior first-match
-    behaviour.
+    Uses a first-match scan over all lines.  Order of evaluation:
+    1. Cisco (most common, checked first)
+    2. Juniper JunOS
+    3. Arista EOS
+    4. Palo Alto PAN-OS
+    5. Fortinet FortiOS
+
+    An ambiguous config that matches multiple vendors resolves to the first
+    matched vendor — this is a documented, accepted trade-off.
 
     Parameters
     ----------
@@ -74,8 +133,8 @@ def detect_vendor(config: str) -> Vendor:
     Returns
     -------
     Vendor
-        ``"cisco"`` or ``"juniper"`` if a positive match is found,
-        ``"unknown"`` otherwise.
+        One of ``"cisco"``, ``"juniper"``, ``"arista"``, ``"panos"``,
+        ``"fortinet"``, or ``"unknown"``.
     """
     lines = config.splitlines()
 
@@ -100,5 +159,20 @@ def detect_vendor(config: str) -> Vendor:
 
         if normalized.startswith("host-name ") and normalized.endswith(";"):
             return "juniper"
+
+        # ---- Arista EOS checks ---------------------------------------------
+        for marker in _ARISTA_LOWER_MARKERS:
+            if normalized.startswith(marker):
+                return "arista"
+
+        # ---- Palo Alto PAN-OS checks ---------------------------------------
+        for marker in _PANOS_LOWER_MARKERS:
+            if normalized.startswith(marker):
+                return "panos"
+
+        # ---- Fortinet FortiOS checks ---------------------------------------
+        for marker in _FORTIOS_LOWER_MARKERS:
+            if normalized.startswith(marker):
+                return "fortinet"
 
     return "unknown"
