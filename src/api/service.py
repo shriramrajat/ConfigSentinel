@@ -34,6 +34,7 @@ from src.api.schemas import (
     AuditSummary,
     ComplianceResultSchema,
     EvidenceSchema,
+    FrameworkSummary,
     RemediationSchema,
 )
 from src.compliance.engine import audit
@@ -277,6 +278,7 @@ def _build_summary(
     """Derive AuditSummary from the actual result list.
 
     No invented metrics.  Counts are derived from ComplianceStatus values.
+    Framework breakdown is derived from framework_refs on each result.
     """
     pass_count = sum(1 for r in results if r.status == ComplianceStatus.PASS)
     fail_count = sum(1 for r in results if r.status == ComplianceStatus.FAIL)
@@ -289,6 +291,51 @@ def _build_summary(
         key = r.severity.value
         severity_distribution[key] = severity_distribution.get(key, 0) + 1
 
+    # Per-framework breakdown — derived from framework_refs prefix matching.
+    # Map each framework_ref string to a canonical framework label.
+    def _framework_label(ref: str) -> str:
+        ref_upper = ref.upper()
+        if ref_upper.startswith("CIS"):
+            return "CIS"
+        if ref_upper.startswith("NIST"):
+            return "NIST"
+        if ref_upper.startswith("DISA"):
+            return "DISA-STIG"
+        if ref_upper.startswith("ISO"):
+            return "ISO-27001"
+        return ref.split("-")[0].upper()
+
+    framework_buckets: dict[str, dict[str, int]] = {}
+    for r in results:
+        if r.status == ComplianceStatus.NOT_APPLICABLE:
+            continue
+        seen_frameworks: set[str] = set()
+        for ref in r.framework_refs:
+            label = _framework_label(ref)
+            if label in seen_frameworks:
+                continue
+            seen_frameworks.add(label)
+            if label not in framework_buckets:
+                framework_buckets[label] = {"total": 0, "passed": 0, "failed": 0, "needs_review": 0}
+            framework_buckets[label]["total"] += 1
+            if r.status == ComplianceStatus.PASS:
+                framework_buckets[label]["passed"] += 1
+            elif r.status == ComplianceStatus.FAIL:
+                framework_buckets[label]["failed"] += 1
+            elif r.status == ComplianceStatus.NEEDS_REVIEW:
+                framework_buckets[label]["needs_review"] += 1
+
+    framework_results = [
+        FrameworkSummary(
+            framework=label,
+            total=counts["total"],
+            passed=counts["passed"],
+            failed=counts["failed"],
+            needs_review=counts["needs_review"],
+        )
+        for label, counts in sorted(framework_buckets.items())
+    ]
+
     return AuditSummary(
         vendor=vendor,
         hostname=hostname,
@@ -299,4 +346,5 @@ def _build_summary(
         needs_review_count=needs_review_count,
         not_applicable_count=not_applicable_count,
         severity_distribution=severity_distribution,
+        framework_results=framework_results,
     )

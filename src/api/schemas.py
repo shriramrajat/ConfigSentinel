@@ -192,6 +192,21 @@ class ComplianceResultSchema(BaseModel):
     ]
 
 
+class FrameworkSummary(BaseModel):
+    """Per-framework compliance breakdown.
+
+    Derived from the framework_refs of each ComplianceResult.
+    Counts only rules that carry a reference to this framework.
+    NOT_APPLICABLE results are excluded from all counts.
+    """
+
+    framework: Annotated[str, Field(description="Framework identifier (e.g. 'CIS', 'NIST', 'DISA-STIG').")]
+    total: Annotated[int, Field(description="Controls tagged with this framework (excluding NOT_APPLICABLE).")]
+    passed: Annotated[int, Field(description="Controls tagged with this framework that passed.")]
+    failed: Annotated[int, Field(description="Controls tagged with this framework that failed.")]
+    needs_review: Annotated[int, Field(description="Controls tagged with this framework needing review.")]
+
+
 class AuditSummary(BaseModel):
     """High-level dashboard counts derived from the compliance results.
 
@@ -213,6 +228,7 @@ class AuditSummary(BaseModel):
     fail_count: Annotated[int, Field(description="Controls with status 'fail'.")]
     needs_review_count: Annotated[int, Field(description="Controls with status 'needs_review'.")]
     not_applicable_count: Annotated[int, Field(description="Controls with status 'not_applicable'. Not a failure count.")]
+
     severity_distribution: Annotated[
         dict[str, int],
         Field(
@@ -222,6 +238,16 @@ class AuditSummary(BaseModel):
             )
         ),
     ]
+    framework_results: Annotated[
+        list[FrameworkSummary],
+        Field(
+            description=(
+                "Per-framework compliance breakdown. "
+                "Each entry covers controls tagged with that framework. "
+                "NOT_APPLICABLE controls are excluded."
+            )
+        ),
+    ] = []
 
 
 class AuditResponse(BaseModel):
