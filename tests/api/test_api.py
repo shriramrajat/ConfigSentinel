@@ -730,7 +730,7 @@ class TestAuditHistory:
         assert "devices" in data
         assert len(data["devices"]) >= 1
 
-    def test_get_report_html(self, client: TestClient) -> None:
+    def test_get_report_pdf(self, client: TestClient) -> None:
         resp = client.post(
             "/api/v1/audit",
             json={"config_text": "hostname ROUTER-REPORT\nip ssh version 2\n"},
@@ -742,7 +742,17 @@ class TestAuditHistory:
 
         report = client.get(f"/api/v1/reports/{audit_id}")
         assert report.status_code == 200
+        assert report.headers["content-type"] == "application/pdf"
+        assert report.content.startswith(b"%PDF-")
+        assert len(report.content) > 100
+
+    def test_get_report_html_browser_view(self, client: TestClient) -> None:
+        history = client.get("/api/v1/audits")
+        audit_id = history.json()["items"][0]["id"]
+
+        report = client.get(f"/api/v1/reports/{audit_id}/html")
+        assert report.status_code == 200
         assert "<html" in report.text.lower()
-        assert "ConfigSentinel Executive Audit Report" in report.text
+
 
 

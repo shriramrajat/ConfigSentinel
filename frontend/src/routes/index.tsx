@@ -24,6 +24,8 @@ import { Route, Routes } from 'react-router-dom'
 import { RootLayout } from '../layouts/RootLayout'
 import { Home } from '../pages/Home'
 import { DiscoveryQueue } from '../pages/DiscoveryQueue'
+import { History } from '../pages/History'
+import { DeviceDashboard } from '../pages/DeviceDashboard'
 
 export function AppRoutes() {
   return (
@@ -31,7 +33,10 @@ export function AppRoutes() {
       <Route element={<RootLayout />}>
         <Route index element={<Home />} />
         <Route path="discovery" element={<DiscoveryQueue />} />
+        <Route path="history" element={<History />} />
+        <Route path="devices" element={<DeviceDashboard />} />
       </Route>
     </Routes>
   )
 }
+

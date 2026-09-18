@@ -243,3 +243,36 @@ export interface ErrorDetail {
 export interface ErrorResponse {
   error: ErrorDetail
 }
+
+export interface AuditListItem {
+  id: string
+  vendor: string
+  hostname: string | null
+  source_name: string | null
+  created_at: string
+  fail_count: number
+  pass_count: number
+  total: number
+}
+
+export interface AuditListResponse {
+  total: number
+  limit: number
+  offset: number
+  items: AuditListItem[]
+}
+
+export interface DeviceSummary {
+  device: string
+  vendor: string
+  audit_count: number
+  last_audit: string
+  total_fails: number
+  total_passes: number
+  total_controls: number
+}
+
+export interface DeviceDashboardResponse {
+  devices: DeviceSummary[]
+}
+

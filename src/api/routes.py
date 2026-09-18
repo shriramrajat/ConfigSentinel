@@ -245,19 +245,45 @@ def device_dashboard() -> JSONResponse:
 # ---------------------------------------------------------------------------
 
 
+from fastapi import APIRouter, Query, Response
+from fastapi.responses import HTMLResponse, JSONResponse
+from src.reporting.pdf_generator import generate_pdf_report
+
+
 @router.get(
     "/api/v1/reports/{audit_id}",
-    summary="Generate executive report for an audit",
-    description="Returns a formatted executive summary report suitable for browser viewing or printing to PDF.",
+    summary="Generate executive PDF report for an audit",
+    description="Returns a native binary PDF executive summary report.",
+    tags=["Reports"],
+)
+def get_audit_report(audit_id: str) -> Response:
+    """Return binary PDF report for an audit result."""
+    store = _get_audit_store()
+    result = store.get_audit(audit_id)
+    if result is None:
+        return JSONResponse(status_code=404, content={"detail": f"Audit '{audit_id}' not found."})
+    pdf_bytes = generate_pdf_report(result, audit_id)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="audit-report-{audit_id}.pdf"'},
+    )
+
+
+@router.get(
+    "/api/v1/reports/{audit_id}/html",
+    summary="Generate HTML executive report for an audit",
+    description="Returns a formatted HTML executive summary report.",
     tags=["Reports"],
     response_class=HTMLResponse,
 )
-def get_audit_report(audit_id: str) -> HTMLResponse:
-    """Return HTML report for printing or PDF export."""
+def get_audit_report_html(audit_id: str) -> HTMLResponse:
+    """Return HTML report for browser viewing."""
     store = _get_audit_store()
     result = store.get_audit(audit_id)
     if result is None:
         return HTMLResponse(status_code=404, content=f"<h1>404 Not Found</h1><p>Audit '{audit_id}' not found.</p>")
     html_content = generate_html_report(result, audit_id)
     return HTMLResponse(content=html_content)
+
 

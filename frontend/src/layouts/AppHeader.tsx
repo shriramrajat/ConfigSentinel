@@ -116,6 +116,36 @@ export function AppHeader() {
             Audit
           </NavLink>
           <NavLink
+            to="/history"
+            style={({ isActive }) => ({
+              fontFamily: 'var(--cs-font-sans)',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: isActive ? 'var(--cs-accent)' : 'var(--cs-text-muted)',
+              borderBottom: isActive ? '2px solid var(--cs-accent)' : '2px solid transparent',
+              paddingBottom: '0.25rem',
+              transition: 'color 0.2s',
+            })}
+          >
+            History
+          </NavLink>
+          <NavLink
+            to="/devices"
+            style={({ isActive }) => ({
+              fontFamily: 'var(--cs-font-sans)',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: isActive ? 'var(--cs-accent)' : 'var(--cs-text-muted)',
+              borderBottom: isActive ? '2px solid var(--cs-accent)' : '2px solid transparent',
+              paddingBottom: '0.25rem',
+              transition: 'color 0.2s',
+            })}
+          >
+            Device Dashboard
+          </NavLink>
+          <NavLink
             to="/discovery"
             style={({ isActive }) => ({
               fontFamily: 'var(--cs-font-sans)',
@@ -131,6 +161,7 @@ export function AppHeader() {
             Discovery Queue
           </NavLink>
         </nav>
+
 
         {/* Right — backend status */}
         <BackendStatus isLoading={isLoading} isError={isError} version={version?.version} />

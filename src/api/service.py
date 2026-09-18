@@ -43,7 +43,13 @@ from src.compliance.registry import RULE_REGISTRY
 from src.ingestion.detector import detect_vendor
 from src.parsers.cisco import parse_cisco
 from src.parsers.juniper import parse_juniper
+from src.parsers.arista import parse_arista
+from src.parsers.fortios import parse_fortios
+from src.parsers.panos import parse_panos
+
+
 from src.mapping.service import SemanticMappingService
+
 from src.mapping.model import SemanticMapping, UnknownPattern
 from src.risk.engine import compute_risk
 from src.audit_store.service import AuditStoreService
@@ -89,18 +95,19 @@ def run_audit(request: AuditRequest) -> AuditResponse:
     vendor = detect_vendor(config_text)
 
     # --- Parse --------------------------------------------------------------
+
     if vendor == "cisco":
         normalized = parse_cisco(config_text)
     elif vendor == "juniper":
         normalized = parse_juniper(config_text)
-    elif vendor in ("arista", "panos", "fortinet"):
-        # Detected but no full parser yet: use best-effort Cisco structural
-        # parser and override the vendor label so compliance rules correctly
-        # return NOT_APPLICABLE.  This is honest — we identify the device
-        # type but do not pretend to fully audit it.
-        _parsed = parse_cisco(config_text)
-        normalized = dataclasses.replace(_parsed, vendor=vendor)
+    elif vendor == "arista":
+        normalized = parse_arista(config_text)
+    elif vendor == "fortinet":
+        normalized = parse_fortios(config_text)
+    elif vendor == "panos":
+        normalized = parse_panos(config_text)
     else:
+
         # Unknown vendor: same best-effort parse, vendor → "unknown".
         _parsed = parse_cisco(config_text)
         normalized = dataclasses.replace(_parsed, vendor="unknown")
@@ -120,7 +127,18 @@ def run_audit(request: AuditRequest) -> AuditResponse:
         logger.error("Failed to inject semantic mappings: %s", str(e))
 
     # --- Compliance engine --------------------------------------------------
-    results: list[ComplianceResult] = audit(normalized, RULE_REGISTRY)
+    active_rules = RULE_REGISTRY
+    if request.framework:
+        target_fw = request.framework.strip().upper()
+        if target_fw == "DISA_STIG" or target_fw == "STIG":
+            target_fw = "DISA-STIG"
+        active_rules = [
+            rule for rule in RULE_REGISTRY
+            if any(_framework_label(ref) == target_fw for ref in rule.control.framework_refs)
+        ]
+
+    results: list[ComplianceResult] = audit(normalized, active_rules)
+
 
     # --- Phase 6.1: Unknown Directive Discovery -----------------------------
     try:
@@ -288,6 +306,20 @@ def _convert_result(result: ComplianceResult) -> ComplianceResultSchema:
     )
 
 
+def _framework_label(ref: str) -> str:
+    ref_upper = ref.upper()
+    if ref_upper.startswith("CIS"):
+        return "CIS"
+    if ref_upper.startswith("NIST"):
+        return "NIST"
+    if ref_upper.startswith("DISA"):
+        return "DISA-STIG"
+    if ref_upper.startswith("ISO"):
+        return "ISO-27001"
+    return ref.split("-")[0].upper()
+
+
+
 def _build_summary(
     vendor: str,
     hostname: str | None,
@@ -310,21 +342,8 @@ def _build_summary(
         key = r.severity.value
         severity_distribution[key] = severity_distribution.get(key, 0) + 1
 
-    # Per-framework breakdown — derived from framework_refs prefix matching.
-    # Map each framework_ref string to a canonical framework label.
-    def _framework_label(ref: str) -> str:
-        ref_upper = ref.upper()
-        if ref_upper.startswith("CIS"):
-            return "CIS"
-        if ref_upper.startswith("NIST"):
-            return "NIST"
-        if ref_upper.startswith("DISA"):
-            return "DISA-STIG"
-        if ref_upper.startswith("ISO"):
-            return "ISO-27001"
-        return ref.split("-")[0].upper()
-
     framework_buckets: dict[str, dict[str, int]] = {}
+
     for r in results:
         if r.status == ComplianceStatus.NOT_APPLICABLE:
             continue

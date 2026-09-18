@@ -38,15 +38,25 @@ class LLMResponse(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
 
 
+from src.mapping.redaction import redact_secrets
+
+
 def sanitize_llm_prompt(text: str) -> str:
-    """Sanitize user-provided text before inserting into LLM prompt to prevent prompt injection."""
+    """Sanitize user-provided text before inserting into LLM prompt.
+
+    1. Redacts sensitive credentials (passwords, hashes, community strings, tokens).
+    2. Strips prompt injection attempts and system instruction overrides.
+    """
     if not text:
         return ""
+    # First redact secret credentials
+    sanitized = redact_secrets(text)
     # Strip dangerous role injection attempts and system instruction overrides
-    sanitized = text.replace("System:", "[REDACTED_ROLE]:").replace("SYSTEM:", "[REDACTED_ROLE]:")
+    sanitized = sanitized.replace("System:", "[REDACTED_ROLE]:").replace("SYSTEM:", "[REDACTED_ROLE]:")
     sanitized = sanitized.replace("Ignore all instructions", "[REDACTED_INSTRUCTION]")
     sanitized = sanitized.replace("ignore previous instructions", "[REDACTED_INSTRUCTION]")
     return sanitized
+
 
 
 class LLMMapper(AIMapper):

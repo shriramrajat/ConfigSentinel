@@ -72,6 +72,17 @@ class AuditRequest(BaseModel):
             ),
         ),
     ] = None
+    framework: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description=(
+                "Optional framework filter: 'CIS', 'NIST', 'DISA-STIG'. "
+                "If omitted, all registered controls are evaluated."
+            ),
+        ),
+    ] = None
+
 
 
 # ---------------------------------------------------------------------------
