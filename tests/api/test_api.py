@@ -682,3 +682,67 @@ class TestSummaryCounts:
         summary = _audit(client, CISCO_CONF).json()["summary"]
         # At least one control passed (SSH-001 with 'ip ssh version 2').
         assert summary["pass_count"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# 17. Audit History & Device Dashboard
+# ---------------------------------------------------------------------------
+
+
+class TestAuditHistory:
+    def test_audit_saves_to_history(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/v1/audit",
+            json={"config_text": "hostname ROUTER-HIST\nip ssh version 2\n", "source_name": "ROUTER-HIST"},
+        )
+        assert resp.status_code == 200
+
+        history = client.get("/api/v1/audits")
+        assert history.status_code == 200
+        data = history.json()
+        assert "items" in data
+        assert data["total"] >= 1
+        found = any(item["hostname"] == "ROUTER-HIST" or item["source_name"] == "ROUTER-HIST" for item in data["items"])
+        assert found
+
+    def test_get_specific_audit_by_id(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/v1/audit",
+            json={"config_text": "hostname ROUTER-GET-ID\nip ssh version 2\n"},
+        )
+        assert resp.status_code == 200
+
+        history = client.get("/api/v1/audits")
+        audit_id = history.json()["items"][0]["id"]
+
+        detail = client.get(f"/api/v1/audits/{audit_id}")
+        assert detail.status_code == 200
+        assert detail.json()["summary"]["vendor"] is not None
+
+    def test_get_nonexistent_audit_404(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/audits/non-existent-uuid")
+        assert resp.status_code == 404
+
+    def test_device_dashboard(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/devices")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "devices" in data
+        assert len(data["devices"]) >= 1
+
+    def test_get_report_html(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/v1/audit",
+            json={"config_text": "hostname ROUTER-REPORT\nip ssh version 2\n"},
+        )
+        assert resp.status_code == 200
+
+        history = client.get("/api/v1/audits")
+        audit_id = history.json()["items"][0]["id"]
+
+        report = client.get(f"/api/v1/reports/{audit_id}")
+        assert report.status_code == 200
+        assert "<html" in report.text.lower()
+        assert "ConfigSentinel Executive Audit Report" in report.text
+
+

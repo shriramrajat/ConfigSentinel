@@ -38,6 +38,17 @@ class LLMResponse(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
 
 
+def sanitize_llm_prompt(text: str) -> str:
+    """Sanitize user-provided text before inserting into LLM prompt to prevent prompt injection."""
+    if not text:
+        return ""
+    # Strip dangerous role injection attempts and system instruction overrides
+    sanitized = text.replace("System:", "[REDACTED_ROLE]:").replace("SYSTEM:", "[REDACTED_ROLE]:")
+    sanitized = sanitized.replace("Ignore all instructions", "[REDACTED_INSTRUCTION]")
+    sanitized = sanitized.replace("ignore previous instructions", "[REDACTED_INSTRUCTION]")
+    return sanitized
+
+
 class LLMMapper(AIMapper):
     """Real LLM provider hitting an OpenAI-compatible REST API."""
     
@@ -63,8 +74,9 @@ class LLMMapper(AIMapper):
         )
         
     def _build_user_prompt(self, pattern: UnknownPattern) -> str:
-        context = f"Context Section: {pattern.section_context}\n" if pattern.section_context else ""
-        return f"{context}Raw Directive: {pattern.raw_directive}"
+        context = f"Context Section: {sanitize_llm_prompt(pattern.section_context)}\n" if pattern.section_context else ""
+        return f"{context}Raw Directive: {sanitize_llm_prompt(pattern.raw_directive)}"
+
 
     def propose_mapping(self, pattern: UnknownPattern) -> SemanticMapping:
         """Call the LLM to propose a semantic mapping."""

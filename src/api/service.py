@@ -46,6 +46,7 @@ from src.parsers.juniper import parse_juniper
 from src.mapping.service import SemanticMappingService
 from src.mapping.model import SemanticMapping, UnknownPattern
 from src.risk.engine import compute_risk
+from src.audit_store.service import AuditStoreService
 import os
 from pathlib import Path
 import logging
@@ -137,7 +138,17 @@ def run_audit(request: AuditRequest) -> AuditResponse:
         results=results,
     )
 
-    return AuditResponse(summary=summary, results=result_schemas)
+    response = AuditResponse(summary=summary, results=result_schemas)
+
+    # --- Persist to audit history -------------------------------------------
+    try:
+        audit_db_path = os.getenv("AUDIT_DB_PATH", str(Path(__file__).parent.parent.parent / "audits.db"))
+        audit_store = AuditStoreService(db_path=audit_db_path)
+        audit_store.save_audit(response)
+    except Exception as e:
+        logger.error("Failed to persist audit result: %s", str(e))
+
+    return response
 
 
 # ---------------------------------------------------------------------------

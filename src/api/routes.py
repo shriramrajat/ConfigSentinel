@@ -19,16 +19,24 @@ Transport contract
 
 from __future__ import annotations
 
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Query
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from src.api.config import API_VERSION, PRODUCT_DESCRIPTION, PRODUCT_NAME
 from src.api.schemas import AuditRequest, AuditResponse, BulkAuditRequest, BulkAuditResponse, ErrorResponse
 from src.api.service import run_audit
 from src.api.errors import InvalidInputError
-from fastapi.responses import JSONResponse as _JSONResponse
+from src.audit_store.service import AuditStoreService
+from src.reporting.report_generator import generate_html_report
+from pathlib import Path
+import os
 
 router = APIRouter()
+
+
+def _get_audit_store() -> AuditStoreService:
+    audit_db_path = os.getenv("AUDIT_DB_PATH", str(Path(__file__).parent.parent.parent / "audits.db"))
+    return AuditStoreService(db_path=audit_db_path)
 
 
 # ---------------------------------------------------------------------------
@@ -170,3 +178,86 @@ def bulk_audit(request: BulkAuditRequest) -> BulkAuditResponse:
         failed=sum(1 for r in results if r.status == "error"),
         results=results,
     )
+
+
+# ---------------------------------------------------------------------------
+# Audit History
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/api/v1/audits",
+    summary="List past audits",
+    description="Returns a paginated list of past audits in reverse-chronological order.",
+    tags=["History"],
+)
+def list_audits(
+    vendor: str | None = Query(default=None, description="Filter by vendor."),
+    limit: int = Query(default=25, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> JSONResponse:
+    """Return lightweight audit list items for the history/dashboard view."""
+    store = _get_audit_store()
+    items = store.list_audits(vendor=vendor, limit=limit, offset=offset)
+    total = store.count_audits(vendor=vendor)
+    return JSONResponse(content={"total": total, "limit": limit, "offset": offset, "items": items})
+
+
+@router.get(
+    "/api/v1/audits/{audit_id}",
+    summary="Get a past audit by ID",
+    description="Returns the full AuditResponse for a past audit.",
+    tags=["History"],
+)
+def get_audit(audit_id: str) -> JSONResponse:
+    """Return the full audit result for a specific ID."""
+    store = _get_audit_store()
+    result = store.get_audit(audit_id)
+    if result is None:
+        return JSONResponse(status_code=404, content={"detail": f"Audit '{audit_id}' not found."})
+    return JSONResponse(content=result.model_dump())
+
+
+# ---------------------------------------------------------------------------
+# Device Dashboard
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/api/v1/devices",
+    summary="Device summary dashboard",
+    description=(
+        "Returns per-device aggregate statistics across all past audits. "
+        "Grouped by source_name (or hostname). "
+        "Shows last audit time, total findings, pass/fail counts."
+    ),
+    tags=["Dashboard"],
+)
+def device_dashboard() -> JSONResponse:
+    """Return per-device aggregate statistics for the dashboard."""
+    store = _get_audit_store()
+    devices = store.device_summary()
+    return JSONResponse(content={"devices": devices})
+
+
+# ---------------------------------------------------------------------------
+# PDF / HTML Executive Reports
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/api/v1/reports/{audit_id}",
+    summary="Generate executive report for an audit",
+    description="Returns a formatted executive summary report suitable for browser viewing or printing to PDF.",
+    tags=["Reports"],
+    response_class=HTMLResponse,
+)
+def get_audit_report(audit_id: str) -> HTMLResponse:
+    """Return HTML report for printing or PDF export."""
+    store = _get_audit_store()
+    result = store.get_audit(audit_id)
+    if result is None:
+        return HTMLResponse(status_code=404, content=f"<h1>404 Not Found</h1><p>Audit '{audit_id}' not found.</p>")
+    html_content = generate_html_report(result, audit_id)
+    return HTMLResponse(content=html_content)
+
