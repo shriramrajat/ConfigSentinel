@@ -80,9 +80,19 @@
   --cs-font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --cs-font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', ui-monospace, monospace;
 
-  /* Spacing --------------------------------------------------------------- */
-  --cs-header-h: 3.25rem;       /* fixed header height                        */
-  --cs-content-max: 56rem;      /* max content width (896px)                  */
+  /* Spacing Scale & Container --------------------------------------------- */
+  --cs-header-h: 3.75rem;       /* fixed header height (60px)                 */
+  --cs-content-max: 75rem;      /* max content width (1200px)                 */
+
+  --cs-space-1: 0.25rem;        /* 4px */
+  --cs-space-2: 0.5rem;         /* 8px */
+  --cs-space-3: 0.75rem;        /* 12px */
+  --cs-space-4: 1rem;           /* 16px */
+  --cs-space-5: 1.25rem;        /* 20px */
+  --cs-space-6: 1.5rem;         /* 24px */
+  --cs-space-8: 2rem;           /* 32px */
+  --cs-space-10: 2.5rem;        /* 40px */
+  --cs-space-12: 3rem;          /* 48px */
 
   /* Radius --------------------------------------------------------------- */
   --cs-radius-sm:  0.25rem;
@@ -153,27 +163,29 @@ body {
 .cs-config-textarea {
   font-family: var(--cs-font-mono);
   font-size: 0.8125rem;
-  line-height: 1.65;
+  line-height: 1.55;
   color: var(--cs-text-code);
   background-color: var(--cs-bg-elevated);
-  border: 1px solid var(--cs-border);
+  border: 1px solid var(--cs-border-strong);
   border-radius: var(--cs-radius);
   resize: vertical;
   width: 100%;
-  padding: 0.75rem 1rem;
-  transition: border-color var(--cs-transition-fast);
+  min-height: 320px;
+  padding: 1rem;
+  transition: border-color var(--cs-transition-fast), box-shadow var(--cs-transition-fast);
   caret-color: var(--cs-accent);
 }
 
 .cs-config-textarea::placeholder {
   color: var(--cs-text-muted);
-  font-style: italic;
+  font-style: normal;
+  opacity: 0.75;
 }
 
 .cs-config-textarea:focus {
   outline: none;
-  border-color: var(--cs-border-strong);
-  box-shadow: 0 0 0 3px var(--cs-accent-muted);
+  border-color: var(--cs-accent);
+  box-shadow: 0 0 0 2px var(--cs-accent-subtle);
 }
 
 .cs-config-textarea:disabled {
@@ -190,9 +202,10 @@ body {
   background-color: var(--cs-bg-elevated);
   border: 1px solid var(--cs-border);
   border-radius: var(--cs-radius);
-  padding: 0.5rem 0.75rem;
+  padding: 0.625rem 0.875rem;
+  height: 2.5rem;
   width: 100%;
-  transition: border-color var(--cs-transition-fast);
+  transition: border-color var(--cs-transition-fast), box-shadow var(--cs-transition-fast);
 }
 
 .cs-text-input::placeholder {
@@ -201,8 +214,8 @@ body {
 
 .cs-text-input:focus {
   outline: none;
-  border-color: var(--cs-border-strong);
-  box-shadow: 0 0 0 3px var(--cs-accent-muted);
+  border-color: var(--cs-accent);
+  box-shadow: 0 0 0 2px var(--cs-accent-subtle);
 }
 
 .cs-text-input:disabled {
@@ -219,15 +232,17 @@ body {
   font-family: var(--cs-font-sans);
   font-size: 0.875rem;
   font-weight: 600;
-  color: #fff;
+  color: #ffffff;
   background-color: var(--cs-accent);
   border: none;
   border-radius: var(--cs-radius);
-  padding: 0.5625rem 1.25rem;
+  height: 2.625rem;
+  padding: 0 1.25rem;
   cursor: pointer;
   transition: background-color var(--cs-transition-fast), opacity var(--cs-transition-fast);
   white-space: nowrap;
   user-select: none;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
 }
 
 .cs-btn-primary:hover:not(:disabled) {
@@ -257,7 +272,8 @@ body {
   background-color: transparent;
   border: 1px solid var(--cs-border);
   border-radius: var(--cs-radius);
-  padding: 0.5rem 1rem;
+  height: 2.625rem;
+  padding: 0 1rem;
   cursor: pointer;
   transition: color var(--cs-transition-fast), border-color var(--cs-transition-fast), background-color var(--cs-transition-fast);
   user-select: none;
@@ -284,6 +300,14 @@ body {
   background-color: var(--cs-bg-surface);
   border: 1px solid var(--cs-border);
   border-radius: var(--cs-radius-md);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.25);
+  padding: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .cs-card {
+    padding: 1rem;
+  }
 }
 
 /* --- Inline code ---------------------------------------------------------- */
@@ -293,7 +317,7 @@ body {
   color: var(--cs-text-code);
   background-color: var(--cs-bg-elevated);
   border-radius: var(--cs-radius-sm);
-  padding: 0.1em 0.35em;
+  padding: 0.15em 0.4em;
 }
 
 /* --- Skeleton pulse ------------------------------------------------------- */
@@ -338,10 +362,18 @@ body {
    6. Responsive Layout
    --------------------------------------------------------------------------- */
 
-/* Home page grid: 1 column on mobile, 2 columns on tablet/desktop */
-@media (min-width: 900px) {
+/* Home page grid: 1 column on mobile/tablet, 2 columns on desktop (>=1024px) */
+.cs-home-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
   .cs-home-grid {
-    grid-template-columns: 2fr 1fr !important;
+    grid-template-columns: 1fr 340px;
+    gap: 1.5rem;
   }
 }
 
@@ -351,3 +383,4 @@ body {
     display: none;
   }
 }
+

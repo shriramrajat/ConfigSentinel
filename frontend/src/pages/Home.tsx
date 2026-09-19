@@ -430,17 +430,17 @@ function CapabilityPanel() {
         ))}
       </ul>
 
-      {/* Vendor support note */}
+      {/* Vendor support section */}
       <div
         style={{
-          marginTop: '1rem',
-          paddingTop: '0.875rem',
+          marginTop: '1.25rem',
+          paddingTop: '1rem',
           borderTop: '1px solid var(--cs-border)',
         }}
       >
         <p
           style={{
-            margin: '0 0 0.25rem',
+            margin: '0 0 0.625rem',
             fontFamily: 'var(--cs-font-sans)',
             fontSize: '0.6875rem',
             fontWeight: 600,
@@ -451,44 +451,70 @@ function CapabilityPanel() {
         >
           Supported Vendors
         </p>
-        <p
-          style={{
-            margin: 0,
-            fontFamily: 'var(--cs-font-sans)',
-            fontSize: '0.8125rem',
-            color: 'var(--cs-text-secondary)',
-            lineHeight: 1.55,
-          }}
-        >
-          Cisco IOS / IOS-XE &amp; Juniper JunOS. Vendor is detected
-          automatically from configuration content.
-        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+          {['Cisco IOS / IOS-XE', 'Juniper JunOS', 'Arista EOS', 'FortiOS', 'PAN-OS'].map((v) => (
+            <span
+              key={v}
+              style={{
+                fontFamily: 'var(--cs-font-sans)',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                color: 'var(--cs-text-primary)',
+                backgroundColor: 'var(--cs-bg-elevated)',
+                border: '1px solid var(--cs-border-strong)',
+                borderRadius: 'var(--cs-radius-sm)',
+                padding: '0.2rem 0.5rem',
+              }}
+            >
+              {v}
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* Determinism note */}
       <div
         style={{
-          marginTop: '0.875rem',
-          padding: '0.625rem 0.875rem',
-          backgroundColor: 'var(--cs-accent-subtle)',
+          marginTop: '1.25rem',
+          padding: '0.75rem 0.875rem',
+          backgroundColor: 'rgba(59, 130, 246, 0.08)',
           border: '1px solid var(--cs-accent-muted)',
           borderRadius: 'var(--cs-radius)',
+          display: 'flex',
+          gap: '0.625rem',
+          alignItems: 'flex-start',
         }}
       >
+        <svg
+          aria-hidden="true"
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          style={{ flexShrink: 0, marginTop: '0.125rem', color: 'var(--cs-accent)' }}
+        >
+          <path
+            d="M8 1.5L2.5 3.8v4.2c0 3.1 2.3 5.9 5.5 7 3.2-1.1 5.5-3.9 5.5-7V3.8L8 1.5z"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinejoin="round"
+          />
+          <path d="M6 8l1.5 1.5L10.5 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
         <p
           style={{
             margin: 0,
             fontFamily: 'var(--cs-font-sans)',
             fontSize: '0.75rem',
             color: 'var(--cs-text-secondary)',
-            lineHeight: 1.55,
+            lineHeight: 1.5,
           }}
         >
           <strong style={{ color: 'var(--cs-text-primary)', fontWeight: 600 }}>
-            Deterministic.
+            Deterministic Security Engine.
           </strong>{' '}
-          Every result is reproducible. No AI — all compliance decisions are
-          rule-based and traceable to configuration evidence.
+          Every result is reproducible and traceable to configuration evidence. Zero LLM reliance for compliance logic.
         </p>
       </div>
     </div>
