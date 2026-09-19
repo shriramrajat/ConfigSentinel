@@ -130,6 +130,18 @@ def get_discovered_pattern(pattern_id: str) -> UnknownPatternSchema:
     return _convert_unknown_pattern(pattern)
 
 
+@router.get("/stats")
+def get_mapping_stats() -> dict:
+    """Retrieve aggregate analytics on pattern discovery and mapping approvals."""
+    return _service.get_mapping_stats()
+
+
+@router.get("/usage")
+def get_mapping_usage(limit: int = 20) -> list[dict]:
+    """Retrieve the most frequently reused approved semantic mappings."""
+    return _service.get_mapping_usage(limit=limit)
+
+
 @router.post("/{mapping_id}/approve", response_model=SemanticMappingSchema)
 def approve_mapping(mapping_id: str, request: ApproveMappingRequest) -> SemanticMappingSchema:
     """Human approval of a proposed mapping."""
@@ -148,3 +160,4 @@ def reject_mapping(mapping_id: str, request: RejectMappingRequest) -> SemanticMa
         return _convert_mapping(mapping)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+

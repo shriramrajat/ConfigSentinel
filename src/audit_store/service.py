@@ -121,3 +121,37 @@ class AuditStoreService:
                 """
             ).fetchall()
             return [dict(row) for row in rows]
+
+    def get_audit_trends(self, limit: int = 30) -> list[dict]:
+        """Return historical trend timeline of audit results."""
+        with get_audit_db(self.db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT id, vendor, COALESCE(source_name, hostname, 'unknown') as device,
+                       created_at, fail_count, pass_count, total
+                FROM audits
+                ORDER BY created_at ASC
+                LIMIT ?
+                """,
+                (limit,)
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def get_device_history(self, device_id: str, limit: int = 50) -> list[dict]:
+        """Return full audit history timeline for a specific device identifier."""
+        with get_audit_db(self.db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT id, vendor, hostname, source_name, created_at,
+                       fail_count, pass_count, total
+                FROM audits
+                WHERE COALESCE(source_name, hostname, 'unknown') = ?
+                   OR hostname = ?
+                   OR source_name = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (device_id, device_id, device_id, limit)
+            ).fetchall()
+            return [dict(row) for row in rows]
+

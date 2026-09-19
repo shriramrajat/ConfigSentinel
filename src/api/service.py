@@ -122,7 +122,8 @@ def run_audit(request: AuditRequest) -> AuditResponse:
         db_path = os.getenv("MAPPINGS_DB_PATH", str(Path(__file__).parent.parent.parent / "mappings.db"))
         mapping_svc = SemanticMappingService(db_path=db_path)
         approved_mappings = mapping_svc.get_approved_mappings(normalized.vendor)
-        normalized = _apply_semantic_mappings(normalized, approved_mappings)
+        normalized = _apply_semantic_mappings(normalized, approved_mappings, mapping_svc)
+
     except Exception as e:
         logger.error("Failed to inject semantic mappings: %s", str(e))
 
@@ -158,13 +159,17 @@ def run_audit(request: AuditRequest) -> AuditResponse:
 
     response = AuditResponse(summary=summary, results=result_schemas)
 
-    # --- Persist to audit history -------------------------------------------
+    # --- Persist to audit history & findings ---------------------------------
     try:
         audit_db_path = os.getenv("AUDIT_DB_PATH", str(Path(__file__).parent.parent.parent / "audits.db"))
         audit_store = AuditStoreService(db_path=audit_db_path)
         audit_store.save_audit(response)
-    except Exception as e:
-        logger.error("Failed to persist audit result: %s", str(e))
+
+        from src.findings.service import FindingService
+        finding_svc = FindingService(db_path=audit_db_path)
+        finding_svc.sync_audit_findings(response)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to persist audit or sync findings: %s", exc)
 
     return response
 
@@ -174,7 +179,9 @@ def run_audit(request: AuditRequest) -> AuditResponse:
 # ---------------------------------------------------------------------------
 
 def _apply_semantic_mappings(
-    config: NormalizedConfig, approved_mappings: list[SemanticMapping]
+    config: NormalizedConfig,
+    approved_mappings: list[SemanticMapping],
+    mapping_svc: SemanticMappingService | None = None,
 ) -> NormalizedConfig:
     """Inject approved semantic mappings into the NormalizedConfig."""
     if not approved_mappings:
@@ -205,6 +212,11 @@ def _apply_semantic_mappings(
             mapping = mapping_dict[syntax]
             item.key = mapping.proposed_key
             item.value = mapping.proposed_value
+            if mapping_svc and mapping.id:
+                try:
+                    mapping_svc.record_mapping_usage(mapping.id)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("Failed to record mapping usage: %s", exc)
 
     for item in config.global_items:
         _apply_to_item(item)
@@ -213,6 +225,7 @@ def _apply_semantic_mappings(
             _apply_to_item(item)
 
     return config
+
 
 def _discover_unknown_patterns(
     config: NormalizedConfig,
