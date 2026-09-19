@@ -136,3 +136,42 @@ def get_control_dependencies() -> JSONResponse:
     """Return control dependency graph and threat scenario amplification nodes."""
     svc = DependencyGraphService()
     return JSONResponse(content={"dependencies": svc.get_dependency_graph()})
+
+
+@router.get("/api/v1/intelligence/posture-analytics", summary="Cross-vendor posture & coverage analytics")
+def get_posture_analytics() -> JSONResponse:
+    """Return posture analytics, vendor coverage metrics, and intent support ratios."""
+    svc = CrossVendorIntelligenceService()
+    matrix = svc.get_coverage_matrix()
+    total_intents = len(svc.list_intents())
+    vendors = ["cisco", "juniper", "arista", "fortinet", "panos"]
+
+    vendor_counts: dict[str, dict[str, int]] = {
+        v: {"evaluated": 0, "total": total_intents} for v in vendors
+    }
+
+    supported_count = 0
+    total_slots = 0
+
+    for item in matrix:
+        cov_dict = item.get("vendor_coverage", {})
+        for v, cov in cov_dict.items():
+            total_slots += 1
+            st = cov.get("status", "UNSUPPORTED")
+            if st in ("SUPPORTED", "PARTIAL"):
+                if v not in vendor_counts:
+                    vendor_counts[v] = {"evaluated": 0, "total": total_intents}
+                vendor_counts[v]["evaluated"] += 1
+            if st == "SUPPORTED":
+                supported_count += 1
+
+    ratio = round(supported_count / total_slots, 2) if total_slots > 0 else 0.0
+
+    return JSONResponse(content={
+        "vendor_coverage": vendor_counts,
+        "intent_support_ratio": ratio,
+        "total_supported_intents": supported_count,
+        "total_intents": total_slots,
+    })
+
+

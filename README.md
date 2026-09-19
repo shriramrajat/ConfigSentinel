@@ -1,139 +1,132 @@
-# ConfigSentinel — Network Configuration Security and Compliance Auditor
+# ConfigSentinel
 
-## Problem Statement
+AI-Assisted Vendor-Agnostic Network Configuration Security & Compliance Auditor
 
-| Field | Value |
-|---|---|
-| **PS ID** | SIH 26155 |
-| **Org** | National Technical Research Organisation (NTRO) |
-| **Category** | Software |
-| **Theme** | Blockchain & Cybersecurity |
+Problem Statement: **SIH 26155** (National Technical Research Organisation - NTRO)
 
 ---
 
-## Current Architecture
+## Architecture Overview
 
 ```
-Raw configuration
-       ↓
-Vendor detection
-       ↓
-Vendor parser (Cisco or Juniper)
-       ↓
-NormalizedConfig
-       ↓
-Compliance Engine
-       ↓
-Compliance Rules
-       ↓
-Evidence + Remediation
+Raw Configuration Text
+        ↓
+Vendor Detection & Registration
+        ↓
+Vendor Parser (Cisco, Juniper, Arista, FortiOS, PAN-OS)
+        ↓
+NormalizedConfig Model
+        ↓
+Deterministic Compliance Engine (Rule Registry)
+        ↓
+Risk Engine / Findings Lifecycle / Evidence / PDF Report
+        ↓
+Cross-Vendor Semantic Intelligence Layer
+        ↓
+Deterministic Analysis & What-If Simulation
+        ↓
+Bounded AI Explanation & Recommendation (Advisory Only)
 ```
-
-### Important Architectural Principle
-
-Compliance rules consume `NormalizedConfig`. They must not parse raw configuration directly. AI/LLM is **not** currently part of deterministic compliance evaluation.
 
 ---
 
 ## Supported Vendors
 
-| Vendor | Parser | Controls evaluated |
-|---|---|---|
-| Cisco IOS / IOS-XE | `src/parsers/cisco.py` | SSH-001, TLN-001, EXEC-001, PWD-001, AAA-001 |
-| Juniper JunOS | `src/parsers/juniper.py` | SSH-001, TLN-001, EXEC-001, PWD-001, AAA-001 |
-| Others | — | Returns `NOT_APPLICABLE` for all controls |
+- **Cisco IOS / IOS-XE**
+- **Juniper JunOS**
+- **Arista EOS**
+- **Fortinet FortiOS**
+- **Palo Alto PAN-OS**
 
 ---
 
-## Current Implementation
+## Core Capabilities & Features
 
-| Component | Status |
-|---|---|
-| Ingestion (`loader.py`, `detector.py`) | ✅ Implemented |
-| Cisco IOS / IOS-XE parser | ✅ Implemented |
-| Juniper JunOS parser | ✅ Implemented |
-| Vendor-neutral normalization model | ✅ Implemented |
-| Compliance engine (`audit()`) | ✅ Implemented |
-| `ComplianceResult` / `Evidence` / `Remediation` model | ✅ Implemented |
-| SSH-001 — SSH Protocol Version | ✅ Implemented |
-| TLN-001 — Telnet Must Be Disabled | ✅ Implemented |
-| EXEC-001 — VTY Idle Session Timeout | ✅ Implemented |
-| PWD-001 — Privileged Password Hashing | ✅ Implemented |
-| AAA-001 — Remote AAA Authentication Must Be Primary | ✅ Implemented |
-| HTTP API (`src/api/`) | ✅ Implemented (FastAPI) |
-| Reporting / output layer | ❌ Not implemented |
-| Web interface (frontend) | ❌ Not implemented — see `docs/FRONTEND.md` |
-| AI-assisted normalization | ❌ Not in scope for deterministic engine |
+### 1. Deterministic Compliance Core
+- **Authoritative Compliance:** Rules in `src/compliance/` are 100% source of truth for `PASS`, `FAIL`, `NEEDS_REVIEW`, and `NOT_APPLICABLE`.
+- **Line-Number Evidence:** Exact configuration line numbers linked directly to observed vs. expected evidence snippets.
+- **14 Active Rules:** Covering SSH hardening, Telnet prohibition, VTY session timeouts, secret password encryption, remote AAA authentication, HTTP web management, remote syslog logging, NTP time synchronization, SNMP community security, banner policies, timezone enforcement, and unnecessary services.
+
+### 2. Risk Engine & Finding Lifecycle
+- **Deterministic Risk Scoring:** Derived from severity and confidence factors.
+- **Finding Lifecycle:** Persistent SQLite tracking of security findings across `OPEN`, `ACKNOWLEDGED`, and `RESOLVED` states with deduplication fingerprints.
+- **Configuration Fingerprinting & Drift Detection:** Detailed structural configuration diffs and posture trend tracking across successive audits.
+
+### 3. Adaptive Semantic Mapping & AI Boundary
+- **Unknown Syntax Discovery:** Automatically captures unknown CLI directives into a review queue.
+- **Adaptive LLM Proposal:** Proposes semantic normalization keys for unknown CLI directives.
+- **Human-in-the-Loop Governance:** AI proposals require explicit human approval before being persisted and reused.
+- **Pre-LLM Secret Redaction:** All passphrases, secrets, and private keys are redacted before sending data to LLM APIs.
+- **Strict Schema Enforcement:** All LLM outputs use Pydantic v2 schemas with `extra="forbid"`.
+
+### 4. Cross-Vendor Security Intelligence (Phase 2)
+- **Vendor-Neutral Security Intents:** Canonical security intent definitions (e.g. `TELNET_DISABLED`, `SSH_VERSION_ENFORCED`, `PASSWORD_ENCRYPTION_ENABLED`, `AAA_AUTHENTICATION_ENABLED`).
+- **Control Coverage Matrix:** Dynamic cross-vendor capability matrix reflecting actual parser capabilities.
+- **Security Policy Translation:** Translates high-level organizational security policy declarations into vendor-specific CLI configuration requirements.
+- **What-If Compliance Simulator:** Deterministic simulation engine predicting projected compliance scores and risk reduction without mutating original audit data or history.
+- **Bounded AI Security Explanations:** Plain-English explanations of findings and risk impacts with pre-canned deterministic fallbacks.
+- **Security Control Dependency Chains:** Deterministic threat scenario models demonstrating risk amplification paths.
+
+### 5. Platform & Reporting
+- **Bulk Ingestion:** Audits multi-device configuration archives simultaneously.
+- **PDF Report Generation:** Executable ReportLab PDF generator rendering executive audit summaries, compliance breakdown tables, and remediations.
+- **SaaS Frontend Interface:** React + Vite + TypeScript dark-theme security dashboard featuring single-file audit scanning, audit history, device dashboard, finding lifecycle, discovery queue, and cross-vendor intelligence tabs.
 
 ---
 
-## Current Controls
+## AI Governance & Boundaries
 
-| Control | Name | Severity | Vendors |
-|---|---|---|---|
-| **SSH-001** | SSH Protocol Version Must Be 2 | HIGH | Cisco, Juniper |
-| **TLN-001** | Telnet Must Be Disabled | CRITICAL | Cisco, Juniper |
-| **EXEC-001** | VTY Idle Session Timeout Must Be Configured | HIGH | Cisco, Juniper |
-| **PWD-001** | Privileged Exec / Root Password Must Use Strong Hashing | HIGH | Cisco, Juniper |
-| **AAA-001** | Remote AAA Authentication Must Be Primary | HIGH | Cisco, Juniper |
+> [!IMPORTANT]
+> **AI IS NOT THE COMPLIANCE AUTHORITY.**
+> AI does NOT determine PASS/FAIL status.
+> AI does NOT assign or modify severity tiers.
+> AI does NOT calculate risk scores.
+> AI serves strictly as an advisory assistant for unknown pattern normalization mapping proposals and plain-English finding explanations.
 
 ---
 
-## API
+## Technology Stack
 
-The FastAPI HTTP API is in `src/api/`. It exposes the existing pipeline over HTTP without modifying any compliance logic.
+- **Backend:** Python 3.12, FastAPI, Pydantic v2, SQLAlchemy / SQLite, ReportLab
+- **Frontend:** React 18, TypeScript, Vite, React Router, Vanilla CSS design system
+- **Testing:** Pytest (552 passing tests)
 
+---
+
+## Quick Start & Verification
+
+### Running Backend Tests
 ```bash
-uvicorn src.api.main:app --reload
+python -m pytest tests/ --tb=short -q
 ```
+*Expected: 552 passed*
 
-| Endpoint | Purpose |
-|---|---|
-| `GET /health` | Liveness probe |
-| `GET /version` | Product version |
-| `POST /api/v1/audit` | Submit configuration text for compliance audit |
-
-OpenAPI schema: `http://localhost:8000/openapi.json`
-Frontend integration contract: [`docs/FRONTEND.md`](docs/FRONTEND.md)
-
----
-
-## Testing
-
-**Current full suite: 454 tests passing** (381 pre-existing + 73 new API tests).
-
-To run tests from the repository root:
-
+### Building Frontend Bundle
 ```bash
-python -m pytest tests/ -q
+npm --prefix frontend run build
 ```
+*Expected: Built cleanly in `dist/`*
 
-Expected output:
-
+### Starting Application
+```bash
+uvicorn src.api.main:app --host 0.0.0.0 --port 10000
 ```
-454 passed in ~3s
-```
+Open Swagger UI: `http://localhost:10000/docs`
 
 ---
 
-## Current Limitations
+## Documentation Index
 
-- **No exact line numbers:** The backend does not track line positions. `evidence.raw_lines` contains text snippets, not line numbers.
-- **Heuristic detection:** Vendor detection is heuristic. Unusual or heavily stripped configs may yield `"unknown"`.
-- **Parsing scope:** Parsers extract hostname, top-level directives, and block sections relevant for compliance. They do not implement full vendor CLI grammars.
-- **Juniper parser flattening:** Items nested more than one level deep inside JunOS blocks are captured under the enclosing top-level section. See `docs/FRONTEND.md` §12.
-- **Unsupported vendors:** Any vendor other than Cisco and Juniper returns `not_applicable` for all controls.
-- **No frontend yet:** The web interface is not implemented. See `docs/FRONTEND.md` for the integration contract.
+- [`docs/PHASE2_IMPLEMENTATION_PLAN.md`](docs/PHASE2_IMPLEMENTATION_PLAN.md) — Phase 2 Architecture & Objectives
+- [`docs/PHASE2_IMPLEMENTATION_STATUS.md`](docs/PHASE2_IMPLEMENTATION_STATUS.md) — Phase 2 Sub-Phase Status
+- [`docs/CROSS_VENDOR_INTELLIGENCE.md`](docs/CROSS_VENDOR_INTELLIGENCE.md) — Cross-Vendor Semantic Architecture
+- [`docs/AI_GOVERNANCE.md`](docs/AI_GOVERNANCE.md) — Strict AI Security Boundaries
+- [`docs/SIH_IMPLEMENTATION_STATUS.md`](docs/SIH_IMPLEMENTATION_STATUS.md) — Implementation Progress Overview
+- [`docs/FINDING_LIFECYCLE.md`](docs/FINDING_LIFECYCLE.md) — SQLite Finding Lifecycle & Drift
 
 ---
 
-## Detailed Documentation.
+## Limitations
 
-| Document | Contents |
-|---|---|
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Full pipeline, normalization model, parser behaviour, engine contract, design decisions |
-| [`docs/CONTROLS.md`](docs/CONTROLS.md) | SSH-001, TLN-001, EXEC-001, PWD-001, AAA-001 — per-vendor behaviour, status tables, evidence |
-| [`docs/FRONTEND.md`](docs/FRONTEND.md) | **Frontend integration contract** — API endpoints, TypeScript types, limitations, integration rules |
-| [`docs/TESTING.md`](docs/TESTING.md) | Testing strategy, test breakdown, edge cases, coverage gaps |
-| [`docs/CONTROL_ROADMAP.md`](docs/CONTROL_ROADMAP.md) | Future control candidates |
-| [`docs/aaa-001-design.md`](docs/aaa-001-design.md) | AAA-001 design notes |
+- **Parser Scope:** Vendor parsers extract sections and directives relevant to compliance; full vendor CLI compiler grammars are not implemented.
+- **Vendor Capability Coverage:** Certain legacy features or vendor-specific capabilities marked `UNSUPPORTED` or `UNKNOWN` require explicit syntax parser definitions.

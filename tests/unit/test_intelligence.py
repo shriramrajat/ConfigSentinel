@@ -142,3 +142,10 @@ def test_intelligence_api_endpoints(client):
     res5 = client.get("/api/v1/intelligence/dependencies")
     assert res5.status_code == 200
     assert "dependencies" in res5.json()
+
+    # GET /api/v1/intelligence/posture-analytics
+    res6 = client.get("/api/v1/intelligence/posture-analytics")
+    assert res6.status_code == 200
+    assert "vendor_coverage" in res6.json()
+    assert "intent_support_ratio" in res6.json()
+
