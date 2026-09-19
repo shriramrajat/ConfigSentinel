@@ -385,4 +385,107 @@ export interface FindingsListResponse {
   findings: SecurityFinding[]
 }
 
+// ---------------------------------------------------------------------------
+// Phase 2: Cross-Vendor Security Intelligence Types
+// ---------------------------------------------------------------------------
+
+export interface SecurityIntentSchema {
+  id: string
+  name: string
+  category: string
+  description: string
+  security_domain: string
+  related_control_ids: string[]
+}
+
+export interface CoverageItemSchema {
+  vendor: string
+  platform: string
+  intent_id: string
+  implementation_status: 'SUPPORTED' | 'PARTIAL' | 'UNSUPPORTED' | 'UNKNOWN'
+  syntax_example: string | null
+  note: string | null
+}
+
+export interface CoverageMatrixResponse {
+  intents: SecurityIntentSchema[]
+  matrix: Record<string, Record<string, 'SUPPORTED' | 'PARTIAL' | 'UNSUPPORTED' | 'UNKNOWN'>>
+  details: CoverageItemSchema[]
+}
+
+export interface SecurityPolicySchema {
+  id: string
+  name: string
+  description: string
+  required_intent_ids: string[]
+}
+
+export interface PolicyTranslationRequest {
+  policy_id: string
+  vendors?: string[]
+}
+
+export interface VendorPolicyTranslationSchema {
+  vendor: string
+  supported_intents: string[]
+  unsupported_intents: string[]
+  syntax_guidance: Array<{ intent_id: string; vendor: string; syntax: string; status: string }>
+}
+
+export interface PolicyTranslationResultSchema {
+  policy_id: string
+  policy_name: string
+  description: string
+  translations: VendorPolicyTranslationSchema[]
+}
+
+export interface SimulationRequest {
+  config_text: string
+  intents_to_fix: string[]
+  vendor?: string
+}
+
+export interface SimulationResultSchema {
+  is_simulated: boolean
+  original_fail_count: number
+  projected_fail_count: number
+  original_pass_count: number
+  projected_pass_count: number
+  original_risk_score: number
+  projected_risk_score: number
+  resolved_control_ids: string[]
+  remaining_fail_control_ids: string[]
+  applied_intent_ids: string[]
+  security_impact: 'SECURITY_IMPROVEMENT' | 'SECURITY_DEGRADATION' | 'NEUTRAL'
+}
+
+export interface FindingExplanationSchema {
+  control_id: string
+  why_it_matters: string
+  potential_impact: string
+  recommended_remediation: string
+  confidence: string
+  is_ai_generated: boolean
+}
+
+export interface ControlDependencyNodeSchema {
+  control_id: string
+  control_name: string
+  depends_on: string[]
+  amplifies: string[]
+  threat_scenario: string
+}
+
+export interface DependenciesResponse {
+  chains: ControlDependencyNodeSchema[]
+}
+
+export interface PostureAnalyticsResponse {
+  vendor_coverage: Record<string, { evaluated: number; total: number }>
+  intent_support_ratio: number
+  total_supported_intents: number
+  total_intents: number
+}
+
+
 

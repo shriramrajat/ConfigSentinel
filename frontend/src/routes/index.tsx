@@ -27,6 +27,7 @@ import { DiscoveryQueue } from '../pages/DiscoveryQueue'
 import { History } from '../pages/History'
 import { DeviceDashboard } from '../pages/DeviceDashboard'
 import { Findings } from '../pages/Findings'
+import { Intelligence } from '../pages/Intelligence'
 
 export function AppRoutes() {
   return (
@@ -37,6 +38,7 @@ export function AppRoutes() {
         <Route path="history" element={<History />} />
         <Route path="devices" element={<DeviceDashboard />} />
         <Route path="findings" element={<Findings />} />
+        <Route path="intelligence" element={<Intelligence />} />
       </Route>
     </Routes>
   )

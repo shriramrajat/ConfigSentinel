@@ -171,3 +171,55 @@ export async function reopenFinding(findingId: string): Promise<import('../types
   })
 }
 
+// ---------------------------------------------------------------------------
+// Phase 2 Intelligence API Functions
+// ---------------------------------------------------------------------------
+
+export async function getIntents(): Promise<{ items: import('../types/api').SecurityIntentSchema[] }> {
+  return apiFetch<{ items: import('../types/api').SecurityIntentSchema[] }>('/api/v1/intelligence/intents')
+}
+
+export async function getCoverageMatrix(vendor?: string, intentId?: string): Promise<import('../types/api').CoverageMatrixResponse> {
+  const query = new URLSearchParams()
+  if (vendor) query.append('vendor', vendor)
+  if (intentId) query.append('intent_id', intentId)
+  return apiFetch<import('../types/api').CoverageMatrixResponse>(`/api/v1/intelligence/coverage?${query.toString()}`)
+}
+
+export async function getSecurityPolicies(): Promise<{ items: import('../types/api').SecurityPolicySchema[] }> {
+  return apiFetch<{ items: import('../types/api').SecurityPolicySchema[] }>('/api/v1/intelligence/policies')
+}
+
+export async function translatePolicy(request: import('../types/api').PolicyTranslationRequest): Promise<import('../types/api').PolicyTranslationResultSchema> {
+  return apiFetch<import('../types/api').PolicyTranslationResultSchema>('/api/v1/intelligence/policies/translate', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
+}
+
+export async function runSimulation(request: import('../types/api').SimulationRequest): Promise<import('../types/api').SimulationResultSchema> {
+  return apiFetch<import('../types/api').SimulationResultSchema>('/api/v1/simulations', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
+}
+
+export async function getFindingExplanation(
+  findingId: string,
+  data: { control_name?: string; severity?: string; evidence_text?: string } = {}
+): Promise<import('../types/api').FindingExplanationSchema> {
+  return apiFetch<import('../types/api').FindingExplanationSchema>(`/api/v1/findings/${encodeURIComponent(findingId)}/explanation`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function getControlDependencies(): Promise<import('../types/api').DependenciesResponse> {
+  return apiFetch<import('../types/api').DependenciesResponse>('/api/v1/intelligence/dependencies')
+}
+
+export async function getPostureAnalytics(): Promise<import('../types/api').PostureAnalyticsResponse> {
+  return apiFetch<import('../types/api').PostureAnalyticsResponse>('/api/v1/intelligence/posture-analytics')
+}
+
+

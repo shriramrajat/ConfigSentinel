@@ -161,6 +161,21 @@ export function AppHeader() {
             Findings
           </NavLink>
           <NavLink
+            to="/intelligence"
+            style={({ isActive }) => ({
+              fontFamily: 'var(--cs-font-sans)',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: isActive ? 'var(--cs-accent)' : 'var(--cs-text-muted)',
+              borderBottom: isActive ? '2px solid var(--cs-accent)' : '2px solid transparent',
+              paddingBottom: '0.25rem',
+              transition: 'color 0.2s',
+            })}
+          >
+            Cross-Vendor Intelligence
+          </NavLink>
+          <NavLink
             to="/discovery"
             style={({ isActive }) => ({
               fontFamily: 'var(--cs-font-sans)',

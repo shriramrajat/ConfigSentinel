@@ -76,6 +76,9 @@ def create_app() -> FastAPI:
     from src.api.mapping_routes import router as mapping_router
     app.include_router(mapping_router)
 
+    from src.api.intelligence_routes import router as intelligence_router
+    app.include_router(intelligence_router)
+
     return app
 
 
