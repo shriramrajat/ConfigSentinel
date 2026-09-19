@@ -1,16 +1,16 @@
 # ConfigSentinel — SIH26155 Implementation Status
 
-**Current Version:** 1.0.0  
-**Phase Status:** Phase 0 — COMPLETE  
+**Current Version:** 1.1.0  
+**Phase Status:** Phase 1 — COMPLETE  
 **Last Verified:** September 2026  
 
 ---
 
 ## 1. Executive Summary
 
-ConfigSentinel is an AI-assisted, vendor-agnostic, adaptive network configuration compliance engine built for SIH Problem Statement SIH26155.
+ConfigSentinel is an AI-assisted, vendor-agnostic, adaptive network configuration security and compliance platform built for SIH Problem Statement SIH26155.
 
-This document serves as the authoritative status matrix for all capabilities implemented in the codebase.
+This document serves as the authoritative status matrix for all Phase 0 and Phase 1 capabilities implemented in the codebase.
 
 ---
 
@@ -18,20 +18,17 @@ This document serves as the authoritative status matrix for all capabilities imp
 
 | Capability | Status | Implementation Details | Test Coverage |
 | :--- | :---: | :--- | :--- |
-| **0.1 Documentation** | `Implemented` | Architectural specs & API contracts in `docs/`. | Verified |
-| **0.3 Line Number Traceability** | `Implemented` | `ConfigItem` & `Evidence` carry source line numbers end-to-end. | Unit & Integration |
-| **0.4 Vendor Detection & Parsing** | `Implemented` | Dedicated parsers for Cisco, Juniper, Arista, FortiOS, PAN-OS in `src/parsers/`. | Unit & End-to-End |
-| **0.6 Secret Redaction** | `Implemented` | Pre-LLM credential redaction layer (`src/mapping/redaction.py`). | Unit tests |
-| **0.9 Framework Filtering** | `Implemented` | `AuditRequest` supports `framework: "CIS" \| "NIST" \| "DISA-STIG"`. | Unit & API tests |
-| **0.10 CIS Controls** | `Implemented` | 13 active controls in `RULE_REGISTRY`. | Unit & API tests |
-| **0.11 NIST SP 800-53 Mappings** | `Mapped` | Framework reference tags mapped on relevant CIS controls. | API aggregation tests |
-| **0.12 DISA STIG Mappings** | `Mapped` | STIG identifier tags mapped on relevant controls. | API aggregation tests |
-| **0.13 Deterministic Risk Engine** | `Implemented` | Math formula: $\text{risk} = \text{severity} \times \text{confidence}$ in `src/risk/engine.py`. | 100% Deterministic |
-| **0.14 Bulk Ingestion** | `Implemented` | `POST /api/v1/audits/bulk` endpoint with per-device error isolation. | API tests |
-| **0.15 Persistence & Dashboard** | `Implemented` | SQLite audit store (`src/audit_store/`) + React History & Devices pages. | Full Stack |
-| **0.17 Binary PDF Reporting** | `Implemented` | ReportLab generator returning `application/pdf` (`%PDF-`). | API tests |
-| **0.18 Demo Fixtures** | `Implemented` | 9 multi-vendor fixtures under `tests/fixtures/`. | Integration tests |
-| **0.19 AI Security Boundary** | `Implemented` | Pydantic strict schemas, prompt injection stripping, human review mandatory. | Security unit tests |
+| **0.1-0.19 Phase 0 Baseline** | `Implemented` | Parsers, deterministic compliance core, 13 controls, line numbers, secret redaction, PDF reporting. | 536 Tests |
+| **1.1 Adaptive Semantic Learning** | `Implemented` | `SemanticCategory` taxonomy enum (21 categories), versioning, vendor isolation. | Unit & Service |
+| **1.2 Confidence & Learning Analytics** | `Implemented` | Deterministic confidence tiers, mapping stats API (`GET /api/v1/mappings/stats`), usage API (`GET /api/v1/mappings/usage`). | Unit & API |
+| **1.3 Cross-Audit Semantic Reuse** | `Implemented` | Persisted approved mappings automatically reused across future audits without LLM calls. | Integration |
+| **1.4 Compliance History & Trends** | `Implemented` | Historical posture model, audit trends API (`GET /api/v1/audits/trends`), device history API (`GET /api/v1/devices/{device_id}/history`). | Unit & API |
+| **1.5 Config Fingerprinting** | `Implemented` | Deterministic SHA-256 canonical fingerprinting over normalized key/values (`src/drift/engine.py`). | Unit |
+| **1.6 Configuration Drift Detection** | `Implemented` | Added, removed, and modified directive detection (`GET /api/v1/devices/{device_id}/drift`). | Unit & API |
+| **1.7 Posture Change Detection** | `Implemented` | Deterministic security impact classification (`SECURITY_IMPROVEMENT`, `SECURITY_DEGRADATION`, `NEUTRAL`) and failure deltas. | Unit & API |
+| **1.8 Finding Lifecycle Management** | `Implemented` | Persistent security finding correlation, occurrence tracking, status transitions (`OPEN` -> `ACKNOWLEDGED` -> `RESOLVED` -> `REOPENED`). | Unit & API |
+| **1.9 Historical Intelligence Dashboard** | `Implemented` | Integrated frontend Finding Lifecycle page (`frontend/src/pages/Findings.tsx`) and navbar. | Full Stack |
+| **1.10 Phase 1 Verification** | `Verified` | 545 backend tests passing, 0 failures, 0 frontend build errors. | Regression Suite |
 
 ---
 
@@ -53,8 +50,6 @@ This document serves as the authoritative status matrix for all capabilities imp
 - **NIST SP 800-53:** Mapped cross-reference tags on corresponding controls. Filtering by `framework: "NIST"` evaluates controls carrying NIST references.
 - **DISA STIG:** Mapped cross-reference tags on corresponding controls. Filtering by `framework: "DISA-STIG"` evaluates controls carrying STIG references.
 
-*Note: NIST and STIG are mapped references on the deterministic rule core, not separate redundant rule engines.*
-
 ---
 
 ## 5. Security & Trust Boundaries
@@ -63,10 +58,12 @@ This document serves as the authoritative status matrix for all capabilities imp
 2. **Pre-LLM Sanitization & Redaction:** Passwords, enable secrets, hashes, SNMP community strings, and tokens are redacted before any directive is sent to an external AI provider.
 3. **Strict Schema Constraints:** LLM output is parsed with Pydantic models configured with `extra="forbid"`.
 4. **Mandatory Human Approval:** Learned semantic mappings remain `PENDING` until explicitly approved by an operator.
+5. **Deterministic Security Impact:** Security degradation and improvement classifications rely 100% on deterministic compliance results, zero LLM reliance.
 
 ---
 
 ## 6. Test Suite & Build Verification
 
-- **Backend Test Suite:** 536 passed (Pytest)
+- **Backend Test Suite:** 545 passed (Pytest)
 - **Frontend Build:** 0 errors (Vite + TypeScript)
+
