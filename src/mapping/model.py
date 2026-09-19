@@ -31,6 +31,31 @@ class HumanApprovalState(enum.Enum):
     REJECTED = "rejected"
 
 
+class SemanticCategory(enum.Enum):
+    """Controlled taxonomy of network security directive semantics."""
+    SSH_SECURITY = "SSH_SECURITY"
+    TELNET_SECURITY = "TELNET_SECURITY"
+    AAA_AUTHENTICATION = "AAA_AUTHENTICATION"
+    PASSWORD_SECURITY = "PASSWORD_SECURITY"
+    SESSION_TIMEOUT = "SESSION_TIMEOUT"
+    LOGGING = "LOGGING"
+    NTP_TIME_SYNC = "NTP_TIME_SYNC"
+    SNMP_SECURITY = "SNMP_SECURITY"
+    HTTP_MANAGEMENT = "HTTP_MANAGEMENT"
+    SERVICE_HARDENING = "SERVICE_HARDENING"
+    ACCESS_CONTROL = "ACCESS_CONTROL"
+    CRYPTOGRAPHY = "CRYPTOGRAPHY"
+    BANNER_SECURITY = "BANNER_SECURITY"
+    DNS_SECURITY = "DNS_SECURITY"
+    NETWORK_MANAGEMENT = "NETWORK_MANAGEMENT"
+    AUTHORIZATION = "AUTHORIZATION"
+    AUDIT_LOGGING = "AUDIT_LOGGING"
+    REMOTE_ACCESS = "REMOTE_ACCESS"
+    MANAGEMENT_PLANE_SECURITY = "MANAGEMENT_PLANE_SECURITY"
+    OTHER = "OTHER"
+    UNRESOLVED = "UNRESOLVED"
+
+
 @dataclass
 class UnknownPattern:
     """An unrecognized configuration directive that could not be parsed."""
@@ -60,6 +85,12 @@ class SemanticMapping:
     proposed_value: str | None
     explanation: str
     confidence: float
+    
+    semantic_category: SemanticCategory = field(default=SemanticCategory.OTHER)
+    mapping_version: int = 1
+    usage_count: int = 0
+    last_used_at: datetime | None = None
+    approved_by: str | None = None
     
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     approval_state: HumanApprovalState = field(default=HumanApprovalState.PENDING)

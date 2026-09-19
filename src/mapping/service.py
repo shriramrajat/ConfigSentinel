@@ -105,8 +105,10 @@ class SemanticMappingService:
                     """
                     INSERT INTO semantic_mappings
                     (id, pattern_id, original_syntax, proposed_key, proposed_value,
-                     confidence, explanation, approval_state, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     confidence, explanation, approval_state, semantic_category,
+                     mapping_version, usage_count, last_used_at, approved_by,
+                     created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         mapping.id,
@@ -117,8 +119,13 @@ class SemanticMappingService:
                         mapping.confidence,
                         mapping.explanation,
                         mapping.approval_state.value,
+                        mapping.semantic_category.value if hasattr(mapping.semantic_category, 'value') else str(mapping.semantic_category),
+                        mapping.mapping_version,
+                        mapping.usage_count,
+                        mapping.last_used_at.isoformat() if mapping.last_used_at else None,
+                        mapping.approved_by,
                         mapping.created_at.isoformat(),
-                        mapping.updated_at.isoformat()
+                        mapping.updated_at.isoformat(),
                     )
                 )
                 conn.commit()
@@ -136,6 +143,15 @@ class SemanticMappingService:
         return mapping
 
     def _row_to_mapping(self, row: sqlite3.Row) -> SemanticMapping:
+        from src.mapping.model import SemanticCategory
+        raw_cat = row["semantic_category"] if "semantic_category" in row.keys() and row["semantic_category"] else "OTHER"
+        try:
+            cat = SemanticCategory(raw_cat)
+        except ValueError:
+            cat = SemanticCategory.OTHER
+
+        last_used = datetime.fromisoformat(row["last_used_at"]) if "last_used_at" in row.keys() and row["last_used_at"] else None
+
         return SemanticMapping(
             id=row["id"],
             pattern_id=row["pattern_id"],
@@ -145,9 +161,15 @@ class SemanticMappingService:
             confidence=row["confidence"],
             explanation=row["explanation"],
             approval_state=HumanApprovalState(row["approval_state"]),
+            semantic_category=cat,
+            mapping_version=row["mapping_version"] if "mapping_version" in row.keys() and row["mapping_version"] is not None else 1,
+            usage_count=row["usage_count"] if "usage_count" in row.keys() and row["usage_count"] is not None else 0,
+            last_used_at=last_used,
+            approved_by=row["approved_by"] if "approved_by" in row.keys() else None,
             created_at=datetime.fromisoformat(row["created_at"]),
-            updated_at=datetime.fromisoformat(row["updated_at"])
+            updated_at=datetime.fromisoformat(row["updated_at"]),
         )
+
 
     def get_pending_mappings(self) -> list[SemanticMapping]:
         """Retrieve all mappings waiting for human approval."""
@@ -166,6 +188,20 @@ class SemanticMappingService:
                 return None
             return self._row_to_mapping(row)
 
+    def record_mapping_usage(self, mapping_id: str) -> None:
+        """Increment usage_count and set last_used_at for a mapping."""
+        now_str = datetime.now(timezone.utc).isoformat()
+        with get_db(self.db_path) as conn:
+            conn.execute(
+                """
+                UPDATE semantic_mappings
+                SET usage_count = usage_count + 1, last_used_at = ?
+                WHERE id = ?
+                """,
+                (now_str, mapping_id)
+            )
+            conn.commit()
+
     def get_approved_mappings(self, vendor: str) -> list[SemanticMapping]:
         """Retrieve all approved semantic mappings for a vendor."""
         with get_db(self.db_path) as conn:
@@ -174,11 +210,12 @@ class SemanticMappingService:
                 SELECT sm.*
                 FROM semantic_mappings sm
                 JOIN unknown_patterns up ON sm.pattern_id = up.id
-                WHERE sm.approval_state = ? AND up.vendor = ?
+                WHERE sm.approval_state = ? AND (up.vendor = ? OR up.vendor = 'ANY')
                 """,
                 (HumanApprovalState.APPROVED.value, vendor)
             ).fetchall()
             return [self._row_to_mapping(row) for row in rows]
+
 
     def get_known_raw_directives(self, vendor: str) -> set[str]:
         """Retrieve raw directives already recorded in unknown_patterns for a vendor."""
@@ -315,3 +352,56 @@ class SemanticMappingService:
             conn.commit()
 
         return self.get_mapping(mapping_id)
+
+    def get_mapping_stats(self) -> dict:
+        """Return aggregate statistics about unknown patterns and learned semantic mappings."""
+        with get_db(self.db_path) as conn:
+            total_patterns = conn.execute("SELECT COUNT(*) as c FROM unknown_patterns").fetchone()["c"]
+            pending_patterns = conn.execute("SELECT COUNT(*) as c FROM unknown_patterns WHERE status = 'pending'").fetchone()["c"]
+            mapped_patterns = conn.execute("SELECT COUNT(*) as c FROM unknown_patterns WHERE status = 'mapped'").fetchone()["c"]
+            rejected_patterns = conn.execute("SELECT COUNT(*) as c FROM unknown_patterns WHERE status = 'rejected'").fetchone()["c"]
+
+            total_mappings = conn.execute("SELECT COUNT(*) as c FROM semantic_mappings").fetchone()["c"]
+            approved_mappings = conn.execute("SELECT COUNT(*) as c FROM semantic_mappings WHERE approval_state = 'approved'").fetchone()["c"]
+            total_usage = conn.execute("SELECT COALESCE(SUM(usage_count), 0) as s FROM semantic_mappings").fetchone()["s"]
+
+            # Vendor distribution
+            vendor_rows = conn.execute("SELECT vendor, COUNT(*) as cnt FROM unknown_patterns GROUP BY vendor").fetchall()
+            by_vendor = {r["vendor"]: r["cnt"] for r in vendor_rows}
+
+            # Category distribution
+            cat_rows = conn.execute("SELECT semantic_category, COUNT(*) as cnt FROM semantic_mappings WHERE approval_state = 'approved' GROUP BY semantic_category").fetchall()
+            by_category = {r["semantic_category"]: r["cnt"] for r in cat_rows}
+
+            approval_rate = (approved_mappings / total_mappings) if total_mappings > 0 else 0.0
+
+            return {
+                "total_patterns": total_patterns,
+                "pending_patterns": pending_patterns,
+                "mapped_patterns": mapped_patterns,
+                "rejected_patterns": rejected_patterns,
+                "total_mappings": total_mappings,
+                "approved_mappings": approved_mappings,
+                "approval_rate": round(approval_rate, 4),
+                "total_mapping_reuse": total_usage,
+                "patterns_by_vendor": by_vendor,
+                "approved_by_category": by_category,
+            }
+
+    def get_mapping_usage(self, limit: int = 20) -> list[dict]:
+        """Return the most frequently reused semantic mappings."""
+        with get_db(self.db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT sm.id, sm.original_syntax, sm.proposed_key, sm.proposed_value,
+                       sm.semantic_category, sm.confidence, sm.usage_count, sm.last_used_at, up.vendor
+                FROM semantic_mappings sm
+                JOIN unknown_patterns up ON sm.pattern_id = up.id
+                WHERE sm.approval_state = 'approved' AND sm.usage_count > 0
+                ORDER BY sm.usage_count DESC, sm.last_used_at DESC
+                LIMIT ?
+                """,
+                (limit,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+

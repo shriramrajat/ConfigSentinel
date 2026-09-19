@@ -7,15 +7,10 @@ SQLite schema and connection management for the Semantic Mapping domain.
 
 import sqlite3
 import contextlib
-from pathlib import Path
 
 
 def init_db(db_path: str) -> None:
-    """Initialize the SQLite database with the required schema.
-    
-    This function is idempotent and will safely skip table creation
-    if the tables already exist.
-    """
+    """Initialize the SQLite database with the required schema and migrations."""
     with get_db(db_path) as conn:
         cursor = conn.cursor()
         
@@ -43,12 +38,32 @@ def init_db(db_path: str) -> None:
                 confidence REAL NOT NULL,
                 explanation TEXT NOT NULL,
                 approval_state TEXT NOT NULL,
+                semantic_category TEXT DEFAULT 'OTHER',
+                mapping_version INTEGER DEFAULT 1,
+                usage_count INTEGER DEFAULT 0,
+                last_used_at TEXT,
+                approved_by TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 FOREIGN KEY (pattern_id) REFERENCES unknown_patterns (id)
             )
         """)
         
+        # Run defensive column migrations for existing databases
+        cursor.execute("PRAGMA table_info(semantic_mappings)")
+        existing_cols = {row["name"] for row in cursor.fetchall()}
+        
+        if "semantic_category" not in existing_cols:
+            cursor.execute("ALTER TABLE semantic_mappings ADD COLUMN semantic_category TEXT DEFAULT 'OTHER'")
+        if "mapping_version" not in existing_cols:
+            cursor.execute("ALTER TABLE semantic_mappings ADD COLUMN mapping_version INTEGER DEFAULT 1")
+        if "usage_count" not in existing_cols:
+            cursor.execute("ALTER TABLE semantic_mappings ADD COLUMN usage_count INTEGER DEFAULT 0")
+        if "last_used_at" not in existing_cols:
+            cursor.execute("ALTER TABLE semantic_mappings ADD COLUMN last_used_at TEXT")
+        if "approved_by" not in existing_cols:
+            cursor.execute("ALTER TABLE semantic_mappings ADD COLUMN approved_by TEXT")
+
         # Create partial unique index to prevent duplicate pending mappings
         cursor.execute("""
             CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_pending_mapping
@@ -69,10 +84,8 @@ def init_db(db_path: str) -> None:
 def get_db(db_path: str):
     """Context manager for SQLite connections with enforced foreign keys."""
     conn = sqlite3.connect(db_path, timeout=10.0)
-    # Return rows as dicts for easier mapping to dataclasses/models
     conn.row_factory = sqlite3.Row
     try:
-        # Enforce foreign key constraints at connection level
         conn.execute("PRAGMA foreign_keys = ON")
         yield conn
     finally:
