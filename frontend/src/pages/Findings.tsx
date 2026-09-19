@@ -18,6 +18,7 @@ import {
   resolveFinding,
   reopenFinding,
 } from '../api/configsentinel'
+import { PageContainer } from '../components/PageContainer'
 import type { SecurityFinding } from '../types/api'
 
 export function Findings() {
@@ -84,11 +85,11 @@ export function Findings() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'OPEN':
-        return <span style={{ color: '#ef4444', fontWeight: 600 }}>● OPEN</span>
+        return <span style={{ color: 'var(--cs-fail)', fontWeight: 600 }}>● OPEN</span>
       case 'ACKNOWLEDGED':
-        return <span style={{ color: '#f59e0b', fontWeight: 600 }}>● ACKNOWLEDGED</span>
+        return <span style={{ color: 'var(--cs-review)', fontWeight: 600 }}>● ACKNOWLEDGED</span>
       case 'RESOLVED':
-        return <span style={{ color: '#10b981', fontWeight: 600 }}>✓ RESOLVED</span>
+        return <span style={{ color: 'var(--cs-pass)', fontWeight: 600 }}>✓ RESOLVED</span>
       default:
         return <span>{status}</span>
     }
@@ -96,18 +97,27 @@ export function Findings() {
 
   const getSeverityBadge = (severity: string) => {
     const s = severity.toUpperCase()
-    let bg = '#374151'
-    let color = '#ffffff'
-    if (s === 'CRITICAL') { bg = '#991b1b'; color = '#fef2f2' }
-    else if (s === 'HIGH') { bg = '#b45309'; color = '#fffbeb' }
-    else if (s === 'MEDIUM') { bg = '#1e40af'; color = '#eff6ff' }
-    else if (s === 'LOW') { bg = '#065f46'; color = '#ecfdf5' }
+    let bg = 'var(--cs-bg-elevated)'
+    let color = 'var(--cs-text-primary)'
+    if (s === 'CRITICAL') {
+      bg = 'var(--cs-fail-bg)'
+      color = 'var(--cs-sev-critical)'
+    } else if (s === 'HIGH') {
+      bg = '#2d1602'
+      color = 'var(--cs-sev-high)'
+    } else if (s === 'MEDIUM') {
+      bg = 'var(--cs-review-bg)'
+      color = 'var(--cs-review)'
+    } else if (s === 'LOW') {
+      bg = 'var(--cs-pass-bg)'
+      color = 'var(--cs-pass)'
+    }
 
     return (
       <span
         style={{
           padding: '0.2rem 0.5rem',
-          borderRadius: '4px',
+          borderRadius: 'var(--cs-radius-sm)',
           fontSize: '0.75rem',
           fontWeight: 700,
           backgroundColor: bg,
@@ -120,44 +130,30 @@ export function Findings() {
   }
 
   return (
-    <div style={{ maxWidth: 'var(--cs-content-max)', margin: '0 auto', padding: '2rem 1.5rem' }}>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--cs-text-primary)' }}>
-          Finding Lifecycle Intelligence
-        </h1>
-        <p style={{ color: 'var(--cs-text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-          Track persistent security findings, occurrence history, and state transitions across audits. ({total} total findings)
-        </p>
-      </div>
-
+    <PageContainer
+      title="Finding Lifecycle Intelligence"
+      description={`Track persistent security findings, occurrence history, and state transitions across audits. (${total} total findings)`}
+    >
       {/* Filter Toolbar */}
       <div
+        className="cs-card"
         style={{
           display: 'flex',
           gap: '1rem',
           alignItems: 'center',
           flexWrap: 'wrap',
           marginBottom: '1.5rem',
-          padding: '1rem',
-          backgroundColor: 'var(--cs-bg-surface)',
-          border: '1px solid var(--cs-border)',
-          borderRadius: '6px',
+          padding: '1rem 1.25rem',
         }}
       >
-        <div>
-          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--cs-text-muted)', marginBottom: '0.25rem' }}>
+        <div style={{ flex: '1 1 160px', minWidth: '140px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--cs-text-muted)', marginBottom: '0.25rem', fontWeight: 500 }}>
             Status Filter
           </label>
           <select
+            className="cs-select"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            style={{
-              padding: '0.4rem 0.75rem',
-              backgroundColor: 'var(--cs-bg-main)',
-              color: 'var(--cs-text-primary)',
-              border: '1px solid var(--cs-border)',
-              borderRadius: '4px',
-            }}
           >
             <option value="">All Statuses</option>
             <option value="OPEN">Open</option>
@@ -166,20 +162,14 @@ export function Findings() {
           </select>
         </div>
 
-        <div>
-          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--cs-text-muted)', marginBottom: '0.25rem' }}>
+        <div style={{ flex: '1 1 160px', minWidth: '140px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--cs-text-muted)', marginBottom: '0.25rem', fontWeight: 500 }}>
             Severity Filter
           </label>
           <select
+            className="cs-select"
             value={severityFilter}
             onChange={(e) => setSeverityFilter(e.target.value)}
-            style={{
-              padding: '0.4rem 0.75rem',
-              backgroundColor: 'var(--cs-bg-main)',
-              color: 'var(--cs-text-primary)',
-              border: '1px solid var(--cs-border)',
-              borderRadius: '4px',
-            }}
           >
             <option value="">All Severities</option>
             <option value="CRITICAL">Critical</option>
@@ -189,91 +179,69 @@ export function Findings() {
           </select>
         </div>
 
-        <div>
-          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--cs-text-muted)', marginBottom: '0.25rem' }}>
+        <div style={{ flex: '2 1 200px', minWidth: '180px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--cs-text-muted)', marginBottom: '0.25rem', fontWeight: 500 }}>
             Device Search
           </label>
           <input
             type="text"
+            className="cs-text-input"
             placeholder="e.g. RTR-CORE-01"
             value={deviceIdFilter}
             onChange={(e) => setDeviceIdFilter(e.target.value)}
-            style={{
-              padding: '0.4rem 0.75rem',
-              backgroundColor: 'var(--cs-bg-main)',
-              color: 'var(--cs-text-primary)',
-              border: '1px solid var(--cs-border)',
-              borderRadius: '4px',
-            }}
           />
         </div>
       </div>
 
       {/* Main Table */}
       {isLoading ? (
-        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--cs-text-muted)' }}>
+        <div className="cs-card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--cs-text-muted)' }}>
           Loading security findings...
         </div>
       ) : error ? (
-        <div style={{ padding: '1.5rem', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: '6px' }}>
+        <div style={{ padding: '1rem 1.25rem', backgroundColor: 'var(--cs-fail-bg)', color: 'var(--cs-fail)', border: '1px solid var(--cs-fail-border)', borderRadius: 'var(--cs-radius)', marginBottom: '1.5rem' }}>
           {error}
         </div>
       ) : findings.length === 0 ? (
-        <div
-          style={{
-            padding: '3rem',
-            textAlign: 'center',
-            backgroundColor: 'var(--cs-bg-surface)',
-            border: '1px solid var(--cs-border)',
-            borderRadius: '6px',
-            color: 'var(--cs-text-muted)',
-          }}
-        >
+        <div className="cs-card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--cs-text-muted)' }}>
           No persistent security findings found matching the filter criteria.
         </div>
       ) : (
-        <div style={{ overflowX: 'auto', border: '1px solid var(--cs-border)', borderRadius: '6px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--cs-bg-surface)' }}>
+        <div className="cs-table-container">
+          <table className="cs-table">
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--cs-border)', textAlign: 'left', fontSize: '0.75rem', color: 'var(--cs-text-muted)', textTransform: 'uppercase' }}>
-                <th style={{ padding: '0.75rem 1rem' }}>Device</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Control ID</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Severity</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Status</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Occurrences</th>
-                <th style={{ padding: '0.75rem 1rem' }}>First Seen</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Last Seen</th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
+              <tr>
+                <th>Device</th>
+                <th>Control ID</th>
+                <th>Severity</th>
+                <th>Status</th>
+                <th>Occurrences</th>
+                <th>First Seen</th>
+                <th>Last Seen</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {findings.map((f) => (
-                <tr key={f.id} style={{ borderBottom: '1px solid var(--cs-border)', fontSize: '0.875rem' }}>
-                  <td style={{ padding: '0.875rem 1rem', fontWeight: 600, color: 'var(--cs-text-primary)' }}>{f.device_id}</td>
-                  <td style={{ padding: '0.875rem 1rem', fontFamily: 'var(--cs-font-mono)', color: 'var(--cs-accent)' }}>{f.control_id}</td>
-                  <td style={{ padding: '0.875rem 1rem' }}>{getSeverityBadge(f.severity)}</td>
-                  <td style={{ padding: '0.875rem 1rem' }}>{getStatusBadge(f.status)}</td>
-                  <td style={{ padding: '0.875rem 1rem', fontWeight: 600 }}>{f.occurrence_count}</td>
-                  <td style={{ padding: '0.875rem 1rem', color: 'var(--cs-text-muted)', fontSize: '0.75rem' }}>
+                <tr key={f.id}>
+                  <td style={{ fontWeight: 600, color: 'var(--cs-text-primary)' }}>{f.device_id}</td>
+                  <td style={{ fontFamily: 'var(--cs-font-mono)', color: 'var(--cs-accent)' }}>{f.control_id}</td>
+                  <td>{getSeverityBadge(f.severity)}</td>
+                  <td>{getStatusBadge(f.status)}</td>
+                  <td style={{ fontWeight: 600 }}>{f.occurrence_count}</td>
+                  <td style={{ color: 'var(--cs-text-muted)', fontSize: '0.75rem' }}>
                     {new Date(f.first_seen).toLocaleString()}
                   </td>
-                  <td style={{ padding: '0.875rem 1rem', color: 'var(--cs-text-muted)', fontSize: '0.75rem' }}>
+                  <td style={{ color: 'var(--cs-text-muted)', fontSize: '0.75rem' }}>
                     {new Date(f.last_seen).toLocaleString()}
                   </td>
-                  <td style={{ padding: '0.875rem 1rem', textAlign: 'right' }}>
+                  <td style={{ textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                       {f.status === 'OPEN' && (
                         <button
                           onClick={() => handleAcknowledge(f.id)}
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            fontSize: '0.75rem',
-                            backgroundColor: '#f59e0b',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                          }}
+                          className="cs-btn-ghost"
+                          style={{ height: '1.875rem', padding: '0 0.625rem', fontSize: '0.75rem', color: 'var(--cs-review)', borderColor: 'var(--cs-review-border)' }}
                         >
                           Acknowledge
                         </button>
@@ -281,15 +249,8 @@ export function Findings() {
                       {f.status !== 'RESOLVED' && (
                         <button
                           onClick={() => handleResolve(f.id)}
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            fontSize: '0.75rem',
-                            backgroundColor: '#10b981',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                          }}
+                          className="cs-btn-primary"
+                          style={{ height: '1.875rem', padding: '0 0.625rem', fontSize: '0.75rem' }}
                         >
                           Resolve
                         </button>
@@ -297,15 +258,8 @@ export function Findings() {
                       {f.status === 'RESOLVED' && (
                         <button
                           onClick={() => handleReopen(f.id)}
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            fontSize: '0.75rem',
-                            backgroundColor: '#ef4444',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                          }}
+                          className="cs-btn-ghost"
+                          style={{ height: '1.875rem', padding: '0 0.625rem', fontSize: '0.75rem', color: 'var(--cs-fail)' }}
                         >
                           Reopen
                         </button>
@@ -318,6 +272,6 @@ export function Findings() {
           </table>
         </div>
       )}
-    </div>
+    </PageContainer>
   )
 }

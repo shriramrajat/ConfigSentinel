@@ -98,7 +98,7 @@ export function AppHeader() {
         </div>
 
         {/* Center - Navigation */}
-        <nav style={{ display: 'flex', gap: '1.5rem' }}>
+        <nav className="cs-header-nav">
           <NavLink
             to="/"
             style={({ isActive }) => ({

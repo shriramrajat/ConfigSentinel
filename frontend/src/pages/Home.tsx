@@ -20,6 +20,7 @@
 import { useAudit } from '../hooks/useAudit'
 import { AuditForm } from '../components/AuditForm'
 import { AuditResults } from '../components/AuditResults'
+import { PageContainer } from '../components/PageContainer'
 import type { AuditRequest } from '../types/api'
 import { ApiError } from '../api/client'
 
@@ -54,64 +55,14 @@ export function Home() {
   }
 
   return (
-    <div
-      style={{
-        maxWidth: 'var(--cs-content-max)',
-        margin: '0 auto',
-        padding: '2.5rem 1.5rem 4rem',
-      }}
+    <PageContainer
+      title="Configuration Audit"
+      description="Submit a raw network device configuration for deterministic compliance auditing across 5 security controls (SSH, Telnet prohibition, Session timeout, Password hashing, and AAA policy). Every result is reproducible and traceable to evidence."
     >
-
       {/* ------------------------------------------------------------------ */}
-      {/* Product header                                                       */}
+      {/* Two-column layout: form (left) + active controls panel (right)      */}
       {/* ------------------------------------------------------------------ */}
-      <div style={{ marginBottom: '2.5rem' }}>
-        <h1
-          style={{
-            margin: '0 0 0.5rem',
-            fontFamily: 'var(--cs-font-sans)',
-            fontWeight: 700,
-            fontSize: '1.375rem',
-            color: 'var(--cs-text-primary)',
-            letterSpacing: '-0.02em',
-          }}
-        >
-          Configuration Audit
-        </h1>
-        <p
-          style={{
-            margin: 0,
-            fontFamily: 'var(--cs-font-sans)',
-            fontSize: '0.875rem',
-            color: 'var(--cs-text-secondary)',
-            lineHeight: 1.6,
-            maxWidth: '44rem',
-          }}
-        >
-          Submit a raw network device configuration for deterministic compliance
-          auditing. The engine evaluates{' '}
-          <strong style={{ color: 'var(--cs-text-primary)', fontWeight: 600 }}>
-            5 security controls
-          </strong>{' '}
-          across SSH version enforcement, telnet prohibition, session timeout,
-          password hashing strength, and AAA authentication policy. Every result
-          is reproducible and traceable to evidence in the configuration.
-        </p>
-      </div>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* Two-column layout: form (left) + capability panel (right)           */}
-      {/* On narrow screens both go full-width, stacked                       */}
-      {/* ------------------------------------------------------------------ */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr)',
-          gap: '2rem',
-          alignItems: 'start',
-        }}
-        className="cs-home-grid"
-      >
+      <div className="cs-two-column">
 
         {/* ---------------------------------------------------------------- */}
         {/* Left column — audit form + state outputs                          */}
@@ -155,7 +106,7 @@ export function Home() {
         </aside>
 
       </div>
-    </div>
+    </PageContainer>
   )
 }
 

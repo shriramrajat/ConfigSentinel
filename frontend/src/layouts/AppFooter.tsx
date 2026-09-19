@@ -69,7 +69,7 @@ export function AppFooter() {
             color: 'var(--cs-text-muted)',
           }}
         >
-          Supports Cisco IOS/IOS-XE and Juniper JunOS.
+          Supports Cisco IOS/IOS-XE, Juniper JunOS, Arista EOS, FortiOS, and PAN-OS.
         </p>
       </div>
     </footer>

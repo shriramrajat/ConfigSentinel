@@ -13,6 +13,7 @@
 
 import { useState, useEffect } from 'react'
 import { apiFetch } from '../api/client'
+import { PageContainer } from '../components/PageContainer'
 
 interface FleetDevice {
   device_id: string
@@ -117,20 +118,13 @@ export function Operations() {
   }
 
   return (
-    <div style={{ paddingBottom: '3rem' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--cs-text-primary)', margin: '0 0 0.5rem 0', letterSpacing: '-0.02em' }}>
-          Security Operations Dashboard
-        </h1>
-        <p style={{ fontSize: '0.875rem', color: 'var(--cs-text-muted)', margin: 0 }}>
-          Continuous fleet posture management, priority risk queue, remediation verification, and bounded natural-language query layer.
-        </p>
-      </div>
-
+    <PageContainer
+      title="Security Operations Dashboard"
+      description="Continuous fleet posture management, priority risk queue, remediation verification, and bounded natural-language query layer."
+    >
       {/* Fleet Overview Cards */}
       {posture && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+        <div className="cs-kpi-grid">
           <div className="cs-card" style={{ padding: '1.25rem' }}>
             <span style={{ fontSize: '0.75rem', color: 'var(--cs-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
               Total Devices
@@ -528,6 +522,6 @@ export function Operations() {
           )}
         </div>
       )}
-    </div>
+    </PageContainer>
   )
 }

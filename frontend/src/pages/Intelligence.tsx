@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { PageContainer } from '../components/PageContainer'
 import {
   getCoverageMatrix,
   getSecurityPolicies,
@@ -143,42 +144,13 @@ export function Intelligence() {
   const vendorsList = ['cisco', 'juniper', 'arista', 'fortios', 'panos']
 
   return (
-    <div style={{ paddingBottom: '3rem' }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: '2rem' }}>
-        <h1
-          style={{
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            color: 'var(--cs-text-primary)',
-            margin: '0 0 0.5rem 0',
-            letterSpacing: '-0.02em',
-          }}
-        >
-          Cross-Vendor Security Intelligence
-        </h1>
-        <p
-          style={{
-            fontSize: '0.875rem',
-            color: 'var(--cs-text-muted)',
-            margin: 0,
-            maxWidth: '48rem',
-          }}
-        >
-          Vendor-neutral security semantics, cross-vendor capability matrices, policy translation, and deterministic what-if compliance simulation.
-        </p>
-      </div>
-
+    <PageContainer
+      title="Cross-Vendor Security Intelligence"
+      description="Vendor-neutral security semantics, cross-vendor capability matrices, policy translation, and deterministic what-if compliance simulation."
+    >
       {/* Analytics Summary Banner */}
       {analytics && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '1rem',
-            marginBottom: '2rem',
-          }}
-        >
+        <div className="cs-kpi-grid">
           <div className="cs-card" style={{ padding: '1.25rem' }}>
             <span style={{ fontSize: '0.75rem', color: 'var(--cs-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
               Intent Coverage Ratio
@@ -771,6 +743,6 @@ export function Intelligence() {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   )
 }

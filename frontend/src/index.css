@@ -358,12 +358,93 @@ body {
   animation: cs-dot-pulse 1.5s ease-in-out infinite;
 }
 
+/* --- Select input --------------------------------------------------------- */
+.cs-select {
+  font-family: var(--cs-font-sans);
+  font-size: 0.875rem;
+  color: var(--cs-text-primary);
+  background-color: var(--cs-bg-elevated);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius);
+  padding: 0 0.875rem;
+  height: 2.5rem;
+  width: 100%;
+  transition: border-color var(--cs-transition-fast), box-shadow var(--cs-transition-fast);
+}
+
+.cs-select:focus {
+  outline: none;
+  border-color: var(--cs-accent);
+  box-shadow: 0 0 0 2px var(--cs-accent-subtle);
+}
+
 /* ---------------------------------------------------------------------------
-   6. Responsive Layout
+   6. Global Layout System
    --------------------------------------------------------------------------- */
 
-/* Home page grid: 1 column on mobile/tablet, 2 columns on desktop (>=1024px) */
-.cs-home-grid {
+/* Global Content Container */
+.cs-page-container {
+  width: 100%;
+  max-width: var(--cs-content-max);
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3.5rem 1.5rem;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .cs-page-container {
+    padding: 1.25rem 1rem 2.5rem 1rem;
+  }
+}
+
+/* Global Page Header */
+.cs-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.cs-page-header-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.cs-page-title {
+  font-family: var(--cs-font-sans);
+  font-weight: 700;
+  font-size: 1.625rem;
+  line-height: 1.25;
+  color: var(--cs-text-primary);
+  letter-spacing: -0.015em;
+  margin: 0 0 0.5rem 0;
+}
+
+@media (max-width: 640px) {
+  .cs-page-title {
+    font-size: 1.375rem;
+  }
+}
+
+.cs-page-description {
+  font-family: var(--cs-font-sans);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--cs-text-secondary);
+  margin: 0;
+  max-width: 48rem;
+}
+
+.cs-page-header-action {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+/* Global Grid Layouts */
+.cs-two-column {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.5rem;
@@ -371,16 +452,132 @@ body {
 }
 
 @media (min-width: 1024px) {
-  .cs-home-grid {
+  .cs-two-column {
     grid-template-columns: 1fr 340px;
-    gap: 1.5rem;
+  }
+}
+
+.cs-two-column-equal {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .cs-two-column-equal {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.cs-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .cs-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .cs-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.cs-card-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .cs-card-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .cs-card-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Table System */
+.cs-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--cs-radius-md);
+  border: 1px solid var(--cs-border);
+  background-color: var(--cs-bg-surface);
+}
+
+.cs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.cs-table th {
+  background-color: var(--cs-bg-elevated);
+  color: var(--cs-text-secondary);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--cs-border);
+  white-space: nowrap;
+}
+
+.cs-table td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--cs-border-muted);
+  color: var(--cs-text-primary);
+  vertical-align: middle;
+}
+
+.cs-table tbody tr:hover td {
+  background-color: var(--cs-bg-subtle);
+}
+
+.cs-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Header Navigation Bar */
+.cs-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.cs-header-nav::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .cs-header-nav {
+    gap: 0.875rem;
+    font-size: 0.8125rem;
   }
 }
 
 /* Hide header descriptor on very narrow screens */
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .cs-header-descriptor {
     display: none;
   }
 }
+
 
