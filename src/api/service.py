@@ -163,11 +163,11 @@ def run_audit(request: AuditRequest) -> AuditResponse:
     try:
         audit_db_path = os.getenv("AUDIT_DB_PATH", str(Path(__file__).parent.parent.parent / "audits.db"))
         audit_store = AuditStoreService(db_path=audit_db_path)
-        audit_store.save_audit(response)
+        audit_id = audit_store.save_audit(response)
 
         from src.findings.service import FindingService
         finding_svc = FindingService(db_path=audit_db_path)
-        finding_svc.sync_audit_findings(response)
+        finding_svc.sync_audit_findings(audit_response=response, audit_id=audit_id)
     except Exception as exc:  # noqa: BLE001
         logger.error("Failed to persist audit or sync findings: %s", exc)
 

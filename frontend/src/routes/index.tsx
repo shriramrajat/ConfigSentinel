@@ -28,12 +28,14 @@ import { History } from '../pages/History'
 import { DeviceDashboard } from '../pages/DeviceDashboard'
 import { Findings } from '../pages/Findings'
 import { Intelligence } from '../pages/Intelligence'
+import { Operations } from '../pages/Operations'
 
 export function AppRoutes() {
   return (
     <Routes>
       <Route element={<RootLayout />}>
         <Route index element={<Home />} />
+        <Route path="operations" element={<Operations />} />
         <Route path="discovery" element={<DiscoveryQueue />} />
         <Route path="history" element={<History />} />
         <Route path="devices" element={<DeviceDashboard />} />

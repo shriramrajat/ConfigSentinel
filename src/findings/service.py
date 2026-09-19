@@ -39,7 +39,7 @@ class FindingService:
     ) -> dict[str, int]:
         """Synchronize findings state after an audit completes."""
         if audit_response is not None:
-            audit_id_str = audit_response.summary.id
+            audit_id_str = getattr(audit_response.summary, "id", None) or audit_id or "unknown-audit"
             dev_id = audit_response.summary.source_name or audit_response.summary.hostname or "unknown"
             results_list = audit_response.results
         else:

@@ -1,6 +1,6 @@
 # ConfigSentinel
 
-AI-Assisted Vendor-Agnostic Network Configuration Security & Compliance Auditor
+AI-Assisted Vendor-Agnostic Network Configuration Security & Compliance Operations Platform
 
 Problem Statement: **SIH 26155** (National Technical Research Organisation - NTRO)
 
@@ -9,7 +9,7 @@ Problem Statement: **SIH 26155** (National Technical Research Organisation - NTR
 ## Architecture Overview
 
 ```
-Raw Configuration Text
+Raw Configuration Text / Multi-Device Uploads
         ↓
 Vendor Detection & Registration
         ↓
@@ -21,11 +21,11 @@ Deterministic Compliance Engine (Rule Registry)
         ↓
 Risk Engine / Findings Lifecycle / Evidence / PDF Report
         ↓
-Cross-Vendor Semantic Intelligence Layer
+Cross-Vendor Security Intelligence & What-If Simulation
         ↓
-Deterministic Analysis & What-If Simulation
+Fleet Inventory / Priority Risk Queue / Baseline Drift / Remediation Verification
         ↓
-Bounded AI Explanation & Recommendation (Advisory Only)
+Bounded Natural-Language Query Layer & Operations Dashboard
 ```
 
 ---
@@ -67,10 +67,15 @@ Bounded AI Explanation & Recommendation (Advisory Only)
 - **Bounded AI Security Explanations:** Plain-English explanations of findings and risk impacts with pre-canned deterministic fallbacks.
 - **Security Control Dependency Chains:** Deterministic threat scenario models demonstrating risk amplification paths.
 
-### 5. Platform & Reporting
-- **Bulk Ingestion:** Audits multi-device configuration archives simultaneously.
-- **PDF Report Generation:** Executable ReportLab PDF generator rendering executive audit summaries, compliance breakdown tables, and remediations.
-- **SaaS Frontend Interface:** React + Vite + TypeScript dark-theme security dashboard featuring single-file audit scanning, audit history, device dashboard, finding lifecycle, discovery queue, and cross-vendor intelligence tabs.
+### 5. Production Security Operations (Phase 3)
+- **Fleet Device Inventory:** SQLite device registry with environment tagging (`PRODUCTION`, `DMZ`, `CORE`, `STAGING`, `LAB`) and posture state.
+- **Operator Priority Queue:** Ranks findings into priority tiers (P1 Critical -> P4 Low) based on deterministic risk, recurrence, and attack chain amplifications.
+- **Remediation Intelligence & Verification:** Multi-vendor remediation guidance across 5 vendors + post-fix audit comparator producing `FIX VERIFIED` or `FIX NOT VERIFIED`.
+- **Immutable Configuration Baselines:** Versioned baselines (v1, v2) with structural drift detection.
+- **Bounded Natural-Language Security Query Layer:** Plain English search translated strictly to Pydantic schemas; blocks SQL injection attempts.
+- **Security Operations Dashboard:** Integrated React UI (`frontend/src/pages/Operations.tsx`) for fleet inventory, priority queue, remediation verification, and NL search.
+- **Operational Exports & Webhooks:** JSON/CSV exporters + sanitized SIEM webhook notification dispatcher.
+- **Production Hardening:** Audit trail logger, Zip Slip path extraction bounds, file upload bounds, and security middleware.
 
 ---
 
@@ -81,7 +86,8 @@ Bounded AI Explanation & Recommendation (Advisory Only)
 > AI does NOT determine PASS/FAIL status.
 > AI does NOT assign or modify severity tiers.
 > AI does NOT calculate risk scores.
-> AI serves strictly as an advisory assistant for unknown pattern normalization mapping proposals and plain-English finding explanations.
+> AI does NOT generate or execute raw SQL.
+> AI serves strictly as an advisory assistant for unknown pattern normalization mapping proposals, plain-English finding explanations, and natural-language query parameter extraction.
 
 ---
 
@@ -89,7 +95,7 @@ Bounded AI Explanation & Recommendation (Advisory Only)
 
 - **Backend:** Python 3.12, FastAPI, Pydantic v2, SQLAlchemy / SQLite, ReportLab
 - **Frontend:** React 18, TypeScript, Vite, React Router, Vanilla CSS design system
-- **Testing:** Pytest (552 passing tests)
+- **Testing:** Pytest (566 passing tests)
 
 ---
 
@@ -99,7 +105,7 @@ Bounded AI Explanation & Recommendation (Advisory Only)
 ```bash
 python -m pytest tests/ --tb=short -q
 ```
-*Expected: 552 passed*
+*Expected: 566 passed*
 
 ### Building Frontend Bundle
 ```bash
@@ -117,16 +123,11 @@ Open Swagger UI: `http://localhost:10000/docs`
 
 ## Documentation Index
 
-- [`docs/PHASE2_IMPLEMENTATION_PLAN.md`](docs/PHASE2_IMPLEMENTATION_PLAN.md) — Phase 2 Architecture & Objectives
-- [`docs/PHASE2_IMPLEMENTATION_STATUS.md`](docs/PHASE2_IMPLEMENTATION_STATUS.md) — Phase 2 Sub-Phase Status
+- [`docs/PHASE3_IMPLEMENTATION_PLAN.md`](docs/PHASE3_IMPLEMENTATION_PLAN.md) — Phase 3 Architecture & Plan
+- [`docs/PHASE3_IMPLEMENTATION_STATUS.md`](docs/PHASE3_IMPLEMENTATION_STATUS.md) — Phase 3 Implementation Matrix
+- [`docs/SECURITY_OPERATIONS.md`](docs/SECURITY_OPERATIONS.md) — Security Operations Architecture
+- [`docs/REMEDIATION_MODEL.md`](docs/REMEDIATION_MODEL.md) — Remediation & Verification Model
+- [`docs/QUERY_SECURITY.md`](docs/QUERY_SECURITY.md) — Bounded Query Security & Sanitization
 - [`docs/CROSS_VENDOR_INTELLIGENCE.md`](docs/CROSS_VENDOR_INTELLIGENCE.md) — Cross-Vendor Semantic Architecture
 - [`docs/AI_GOVERNANCE.md`](docs/AI_GOVERNANCE.md) — Strict AI Security Boundaries
-- [`docs/SIH_IMPLEMENTATION_STATUS.md`](docs/SIH_IMPLEMENTATION_STATUS.md) — Implementation Progress Overview
-- [`docs/FINDING_LIFECYCLE.md`](docs/FINDING_LIFECYCLE.md) — SQLite Finding Lifecycle & Drift
-
----
-
-## Limitations
-
-- **Parser Scope:** Vendor parsers extract sections and directives relevant to compliance; full vendor CLI compiler grammars are not implemented.
-- **Vendor Capability Coverage:** Certain legacy features or vendor-specific capabilities marked `UNSUPPORTED` or `UNKNOWN` require explicit syntax parser definitions.
+- [`docs/SIH_IMPLEMENTATION_STATUS.md`](docs/SIH_IMPLEMENTATION_STATUS.md) — Overall Implementation Status

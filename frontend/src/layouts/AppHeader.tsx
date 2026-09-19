@@ -116,6 +116,21 @@ export function AppHeader() {
             Audit
           </NavLink>
           <NavLink
+            to="/operations"
+            style={({ isActive }) => ({
+              fontFamily: 'var(--cs-font-sans)',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: isActive ? 'var(--cs-accent)' : 'var(--cs-text-muted)',
+              borderBottom: isActive ? '2px solid var(--cs-accent)' : '2px solid transparent',
+              paddingBottom: '0.25rem',
+              transition: 'color 0.2s',
+            })}
+          >
+            Security Operations
+          </NavLink>
+          <NavLink
             to="/history"
             style={({ isActive }) => ({
               fontFamily: 'var(--cs-font-sans)',

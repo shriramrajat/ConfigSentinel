@@ -30,17 +30,17 @@ _SECRET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     ),
     # Cisco / Arista / EOS enable secret / password hashes (type 5, 8, 9, 7)
     (
-        re.compile(r"(enable\s+(?:secret|password)\s+(?:\d+\s+)?)[^\s]+", re.IGNORECASE),
+        re.compile(r"(enable\s+(?:secret|password)\s+(?:\d+\s+)?)[^\s\"'\\]+", re.IGNORECASE),
         r"\1[REDACTED_SECRET]",
     ),
     # Generic password / secret lines: "password 7 0822455D0A16", "user foo password bar"
     (
-        re.compile(r"(\b(?:password|secret|preshared-key|pre-shared-key|auth-pass|key|md5-key)\s+(?:\d+\s+)?)[^\s]+", re.IGNORECASE),
+        re.compile(r"(\b(?:password|secret|preshared-key|pre-shared-key|auth-pass|key|md5-key)\s+(?:\d+\s+)?)[^\s\"'\\]+", re.IGNORECASE),
         r"\1[REDACTED_SECRET]",
     ),
     # SNMP Community strings: "snmp-server community public RW", "community secret-key"
     (
-        re.compile(r"(\bsnmp-server\s+community\s+)[^\s]+", re.IGNORECASE),
+        re.compile(r"(\bsnmp-server\s+community\s+)[^\s\"'\\]+", re.IGNORECASE),
         r"\1[REDACTED_COMMUNITY]",
     ),
     (
