@@ -276,3 +276,113 @@ export interface DeviceDashboardResponse {
   devices: DeviceSummary[]
 }
 
+// ---------------------------------------------------------------------------
+// Phase 1 Extensions: Analytics, History Trends, Drift, Posture & Findings
+// ---------------------------------------------------------------------------
+
+export interface MappingStats {
+  total_unknown: number
+  pending: number
+  approved: number
+  rejected: number
+  approval_rate: number
+  total_reuses: number
+}
+
+export interface MappingUsageItem {
+  id: string
+  raw_pattern: string
+  semantic_category: string
+  vendor: string
+  usage_count: number
+  last_used_at: string | null
+}
+
+export interface AuditTrendItem {
+  id: string
+  created_at: string
+  hostname: string
+  vendor: string
+  fail_count: number
+  pass_count: number
+  total: number
+  compliance_score: number
+  risk_score: number
+}
+
+export interface AuditTrendsResponse {
+  trends: AuditTrendItem[]
+}
+
+export interface DeviceHistoryItem {
+  id: string
+  created_at: string
+  fail_count: number
+  pass_count: number
+  total: number
+  compliance_score: number
+  risk_score: number
+}
+
+export interface DeviceHistoryResponse {
+  device: string
+  history: DeviceHistoryItem[]
+}
+
+export interface DriftItem {
+  change_type: 'ADDED' | 'REMOVED' | 'MODIFIED'
+  key: string
+  old_value: string | null
+  new_value: string | null
+}
+
+export interface DeviceDriftResponse {
+  device: string
+  previous_audit_id: string | null
+  current_audit_id: string | null
+  previous_fingerprint?: string
+  current_fingerprint?: string
+  drift_count: number
+  drift: DriftItem[]
+  message?: string
+}
+
+export interface PostureDeltaResponse {
+  device: string
+  previous_audit_id: string | null
+  current_audit_id: string | null
+  security_impact: 'SECURITY_IMPROVEMENT' | 'SECURITY_DEGRADATION' | 'NEUTRAL'
+  new_failures: string[]
+  resolved_failures: string[]
+  previous_fail_count: number
+  current_fail_count: number
+  previous_pass_count: number
+  current_pass_count: number
+}
+
+export interface SecurityFinding {
+  id: string
+  fingerprint: string
+  device_id: string
+  control_id: string
+  severity: string
+  status: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED'
+  first_seen: string
+  last_seen: string
+  first_seen_audit_id: string | null
+  last_seen_audit_id: string | null
+  occurrence_count: number
+  resolved_at: string | null
+  acknowledged_at: string | null
+  evidence_json: string | null
+  remediation_json: string | null
+}
+
+export interface FindingsListResponse {
+  total: number
+  limit: number
+  offset: number
+  findings: SecurityFinding[]
+}
+
+
