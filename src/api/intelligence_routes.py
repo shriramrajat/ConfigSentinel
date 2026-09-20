@@ -135,7 +135,8 @@ def get_finding_explanation(finding_id: str, req: FindingExplanationApiRequest) 
 def get_control_dependencies() -> JSONResponse:
     """Return control dependency graph and threat scenario amplification nodes."""
     svc = DependencyGraphService()
-    return JSONResponse(content={"dependencies": svc.get_dependency_graph()})
+    graph = svc.get_dependency_graph()
+    return JSONResponse(content={"dependencies": graph, "chains": graph})
 
 
 @router.get("/api/v1/intelligence/posture-analytics", summary="Cross-vendor posture & coverage analytics")

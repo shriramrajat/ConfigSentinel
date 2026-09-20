@@ -92,14 +92,20 @@ export function Intelligence() {
   }, [])
 
   useEffect(() => {
-    if (activeTab === 'dependencies' && dependencies.length === 0) {
+    if (activeTab === 'dependencies' && (!dependencies || dependencies.length === 0)) {
       setDepsLoading(true)
       getControlDependencies()
-      .then((res) => setDependencies(res.chains))
-      .catch((err) => console.error('Failed loading dependencies:', err))
-      .finally(() => setDepsLoading(false))
+        .then((res: any) => {
+          const chains = res?.chains || res?.dependencies || []
+          setDependencies(chains)
+        })
+        .catch((err) => {
+          console.error('Failed loading dependencies:', err)
+          setDependencies([])
+        })
+        .finally(() => setDepsLoading(false))
     }
-  }, [activeTab, dependencies.length])
+  }, [activeTab, dependencies?.length])
 
   const handleTranslatePolicy = async () => {
     if (!selectedPolicyId) return
@@ -187,6 +193,7 @@ export function Intelligence() {
         }}
       >
         <button
+          type="button"
           onClick={() => setActiveTab('matrix')}
           style={{
             padding: '0.625rem 1rem',
@@ -202,6 +209,7 @@ export function Intelligence() {
           Control Coverage Matrix
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('policies')}
           style={{
             padding: '0.625rem 1rem',
@@ -217,6 +225,7 @@ export function Intelligence() {
           Policy Translation
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('simulator')}
           style={{
             padding: '0.625rem 1rem',
@@ -232,6 +241,7 @@ export function Intelligence() {
           What-If Simulator
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('dependencies')}
           style={{
             padding: '0.625rem 1rem',

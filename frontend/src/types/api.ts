@@ -477,7 +477,8 @@ export interface ControlDependencyNodeSchema {
 }
 
 export interface DependenciesResponse {
-  chains: ControlDependencyNodeSchema[]
+  chains?: ControlDependencyNodeSchema[]
+  dependencies?: ControlDependencyNodeSchema[]
 }
 
 export interface PostureAnalyticsResponse {
