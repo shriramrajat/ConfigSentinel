@@ -65,13 +65,16 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def run_audit(request: AuditRequest) -> AuditResponse:
+def run_audit(request: AuditRequest, persist: bool = True) -> AuditResponse:
     """Run the full compliance pipeline for a configuration text request.
 
     Parameters
     ----------
     request:
         Validated AuditRequest from the HTTP layer.
+    persist:
+        If True (default), saves the audit result to history, syncs findings, and updates device inventory.
+        If False, runs in-memory evaluation without mutating history, findings, or inventory.
 
     Returns
     -------
@@ -142,11 +145,12 @@ def run_audit(request: AuditRequest) -> AuditResponse:
 
 
     # --- Phase 6.1: Unknown Directive Discovery -----------------------------
-    try:
-        if mapping_svc:
-            _discover_unknown_patterns(normalized, results, mapping_svc)
-    except Exception as e:
-        logger.error("Failed to discover unknown patterns: %s", str(e))
+    if persist:
+        try:
+            if mapping_svc:
+                _discover_unknown_patterns(normalized, results, mapping_svc)
+        except Exception as e:
+            logger.error("Failed to discover unknown patterns: %s", str(e))
 
     # --- Convert to schemas -------------------------------------------------
     result_schemas = [_convert_result(r) for r in results]
@@ -160,16 +164,17 @@ def run_audit(request: AuditRequest) -> AuditResponse:
     response = AuditResponse(summary=summary, results=result_schemas)
 
     # --- Persist to audit history & findings ---------------------------------
-    try:
-        audit_db_path = os.getenv("AUDIT_DB_PATH", str(Path(__file__).parent.parent.parent / "audits.db"))
-        audit_store = AuditStoreService(db_path=audit_db_path)
-        audit_id = audit_store.save_audit(response)
+    if persist:
+        try:
+            audit_db_path = os.getenv("AUDIT_DB_PATH", str(Path(__file__).parent.parent.parent / "audits.db"))
+            audit_store = AuditStoreService(db_path=audit_db_path)
+            audit_id = audit_store.save_audit(response)
 
-        from src.findings.service import FindingService
-        finding_svc = FindingService(db_path=audit_db_path)
-        finding_svc.sync_audit_findings(audit_response=response, audit_id=audit_id)
-    except Exception as exc:  # noqa: BLE001
-        logger.error("Failed to persist audit or sync findings: %s", exc)
+            from src.findings.service import FindingService
+            finding_svc = FindingService(db_path=audit_db_path)
+            finding_svc.sync_audit_findings(audit_response=response, audit_id=audit_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Failed to persist audit or sync findings: %s", exc)
 
     return response
 

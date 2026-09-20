@@ -149,3 +149,55 @@ def test_intelligence_api_endpoints(client):
     assert "vendor_coverage" in res6.json()
     assert "intent_support_ratio" in res6.json()
 
+
+def test_simulation_does_not_mutate_audit_history_or_findings(client):
+    # 1. Create and persist an explicit audit for test-cisco-day1
+    audit_req = {
+        "config_text": "hostname test-cisco-day1\nline vty 0 4\n transport input telnet ssh\n no service password-encryption",
+        "source_name": "test-cisco-day1",
+    }
+    audit_res = client.post("/api/v1/audit", json=audit_req)
+    assert audit_res.status_code == 200
+
+    # 2. Record audit history state
+    hist_res_before = client.get("/api/v1/audits?limit=50")
+    assert hist_res_before.status_code == 200
+    audits_before = hist_res_before.json()["items"]
+    before_count = len(audits_before)
+    target_audit_before = next(a for a in audits_before if a.get("source_name") == "test-cisco-day1" or a.get("hostname") == "test-cisco-day1")
+    assert target_audit_before["source_name"] == "test-cisco-day1"
+    orig_pass = target_audit_before["pass_count"]
+    orig_fail = target_audit_before["fail_count"]
+    orig_total = target_audit_before["total"]
+
+    # 3. Run What-If simulation with a DIFFERENT hostname RTR-BORDER-01
+    sim_res = client.post(
+        "/api/v1/simulations",
+        json={
+            "config_text": "hostname RTR-BORDER-01\nline vty 0 4\n transport input telnet ssh\n no service password-encryption",
+            "intents_to_fix": ["TELNET_DISABLED", "PASSWORD_ENCRYPTION_ENABLED"],
+        },
+    )
+    assert sim_res.status_code == 200
+    sim_data = sim_res.json()
+    assert sim_data["is_simulated"] is True
+
+    # 4. Query audit history again
+    hist_res_after = client.get("/api/v1/audits?limit=50")
+    assert hist_res_after.status_code == 200
+    audits_after = hist_res_after.json()["items"]
+
+    # 5. Verify total audit count did NOT increase
+    assert len(audits_after) == before_count
+
+    # 6. Verify RTR-BORDER-01 was NOT added to audit history
+    rtr_audit = next((a for a in audits_after if a.get("hostname") == "RTR-BORDER-01" or a.get("source_name") == "RTR-BORDER-01"), None)
+    assert rtr_audit is None, "Simulation configuration must NOT be persisted as an audit history entry!"
+
+    # 7. Verify original test-cisco-day1 audit record remains unchanged
+    target_audit_after = next(a for a in audits_after if a.get("source_name") == "test-cisco-day1" or a.get("hostname") == "test-cisco-day1")
+    assert target_audit_after["pass_count"] == orig_pass
+    assert target_audit_after["fail_count"] == orig_fail
+    assert target_audit_after["total"] == orig_total
+
+

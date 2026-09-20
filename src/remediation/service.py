@@ -156,7 +156,8 @@ class RemediationService:
         """Run post-remediation audit and deterministically verify if fix succeeded."""
         now = datetime.now(timezone.utc).isoformat()
         audit_res: AuditResponse = run_audit(
-            AuditRequest(config_text=remediated_config_text, vendor=vendor)
+            AuditRequest(config_text=remediated_config_text, vendor=vendor),
+            persist=False,
         )
 
         matched_res = next((r for r in audit_res.results if r.control_id == control_id), None)

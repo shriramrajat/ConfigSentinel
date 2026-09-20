@@ -84,7 +84,7 @@ class BaselineService:
     ) -> BaselineRecord:
         """Create a new immutable baseline version for a device."""
         now = datetime.now(timezone.utc).isoformat()
-        audit_res = run_audit(AuditRequest(config_text=config_text, vendor=vendor))
+        audit_res = run_audit(AuditRequest(config_text=config_text, vendor=vendor), persist=False)
         fp = hashlib.sha256(config_text.encode("utf-8")).hexdigest()
 
         conn = sqlite3.connect(self.db_path)

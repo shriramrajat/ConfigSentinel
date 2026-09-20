@@ -93,13 +93,16 @@ def run_simulation(req: SimulationApiRequest) -> JSONResponse:
     if not audit_resp and req.config_text:
         from src.api.service import run_audit
         from src.api.schemas import AuditRequest
-        audit_resp = run_audit(AuditRequest(config_text=req.config_text))
+        audit_resp = run_audit(AuditRequest(config_text=req.config_text), persist=False)
 
     if not audit_resp:
         # Generate baseline sample audit response if neither ID nor config provided
         from src.api.service import run_audit
         from src.api.schemas import AuditRequest
-        audit_resp = run_audit(AuditRequest(config_text="hostname RTR-CORE-01\nline vty 0 4\n transport input telnet ssh\n no service password-encryption"))
+        audit_resp = run_audit(
+            AuditRequest(config_text="hostname RTR-CORE-01\nline vty 0 4\n transport input telnet ssh\n no service password-encryption"),
+            persist=False,
+        )
 
     simulator = WhatIfSimulator()
     sim_res = simulator.simulate_intent_fixes(audit_response=audit_resp, intents_to_fix=req.intents_to_fix)
