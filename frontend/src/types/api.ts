@@ -429,7 +429,7 @@ export interface VendorPolicyTranslationSchema {
   vendor: string
   supported_intents: string[]
   unsupported_intents: string[]
-  syntax_guidance: Array<{ intent_id: string; vendor: string; syntax: string; status: string }>
+  syntax_guidance: Array<{ intent_id: string; syntax: string; platform: string; status: string }>
 }
 
 export interface PolicyTranslationResultSchema {

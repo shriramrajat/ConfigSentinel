@@ -277,6 +277,7 @@ class CrossVendorIntelligenceService:
                         "intent_id": intent_id,
                         "syntax": impl.syntax_example or "Vendor-specific directive",
                         "platform": impl.platform,
+                        "status": "SUPPORTED",
                     })
                 else:
                     unsupported.append(intent_id)
@@ -284,6 +285,7 @@ class CrossVendorIntelligenceService:
                         "intent_id": intent_id,
                         "syntax": "Vendor implementation unavailable.",
                         "platform": v,
+                        "status": "UNSUPPORTED",
                     })
 
             translations.append(VendorPolicyTranslation(

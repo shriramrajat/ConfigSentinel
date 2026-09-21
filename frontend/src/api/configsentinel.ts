@@ -183,11 +183,47 @@ export async function getCoverageMatrix(vendor?: string, intentId?: string): Pro
   const query = new URLSearchParams()
   if (vendor) query.append('vendor', vendor)
   if (intentId) query.append('intent_id', intentId)
-  return apiFetch<import('../types/api').CoverageMatrixResponse>(`/api/v1/intelligence/coverage?${query.toString()}`)
+  // Backend returns { coverage_matrix: [{intent_id, intent_name, category, security_domain, related_controls, vendor_coverage}] }
+  // Transform into the { intents, matrix, details } shape that CoverageMatrixResponse defines.
+  const raw = await apiFetch<{ coverage_matrix: Array<{
+    intent_id: string
+    intent_name: string
+    category: string
+    security_domain: string
+    related_controls: string[]
+    vendor_coverage: Record<string, { status: string; syntax: string | null; platform: string }>
+  }> }>(`/api/v1/intelligence/coverage?${query.toString()}`)
+
+  const items = Array.isArray(raw?.coverage_matrix) ? raw.coverage_matrix : []
+
+  const intents: import('../types/api').SecurityIntentSchema[] = items.map((item) => ({
+    id: item.intent_id,
+    name: item.intent_name,
+    category: item.category,
+    description: '',
+    security_domain: item.security_domain,
+    related_control_ids: Array.isArray(item.related_controls) ? item.related_controls : [],
+  }))
+
+  const matrix: Record<string, Record<string, 'SUPPORTED' | 'PARTIAL' | 'UNSUPPORTED' | 'UNKNOWN'>> = {}
+  for (const item of items) {
+    matrix[item.intent_id] = {}
+    for (const [v, cov] of Object.entries(item.vendor_coverage ?? {})) {
+      const st = (cov?.status ?? 'UNKNOWN') as 'SUPPORTED' | 'PARTIAL' | 'UNSUPPORTED' | 'UNKNOWN'
+      matrix[item.intent_id][v] = st
+    }
+  }
+
+  return { intents, matrix, details: [] }
 }
 
 export async function getSecurityPolicies(): Promise<{ items: import('../types/api').SecurityPolicySchema[] }> {
-  return apiFetch<{ items: import('../types/api').SecurityPolicySchema[] }>('/api/v1/intelligence/policies')
+  try {
+    const res = await apiFetch<{ items: import('../types/api').SecurityPolicySchema[] }>('/api/v1/intelligence/policies')
+    return { items: Array.isArray(res?.items) ? res.items : [] }
+  } catch {
+    return { items: [] }
+  }
 }
 
 export async function translatePolicy(request: import('../types/api').PolicyTranslationRequest): Promise<import('../types/api').PolicyTranslationResultSchema> {
