@@ -706,3 +706,114 @@ def test_audit_persistence_persist_false_isolation():
         if os.path.exists(path):
             os.remove(path)
 
+
+# --- Security Regression Tests for Bounded Natural-Language Query ---
+
+def test_nl_query_security_malicious_sql_rejection(client):
+    """
+    Security regression test: Malicious SQL-like input must return 0 matched devices
+    and 0 matched findings (controlled zero results), and must NEVER execute dynamic SQL.
+    """
+    malicious_payloads = [
+        "DROP TABLE findings; SELECT * FROM users;",
+        "SELECT * FROM security_findings WHERE 1=1",
+        "DELETE FROM devices",
+        "INSERT INTO devices (device_id) VALUES ('hacked')",
+        "UNION SELECT 1, 2, 3",
+        "ALTER TABLE security_findings ADD COLUMN hack text",
+        "TRUNCATE TABLE audits",
+        "-- drop database",
+    ]
+
+    for payload in malicious_payloads:
+        r = client.post("/api/v1/query", json={"query": payload})
+        assert r.status_code == 200, f"Payload '{payload}' should return HTTP 200 with zero results"
+        body = r.json()
+
+        assert body["matched_devices"] == [], f"Payload '{payload}' returned non-empty matched_devices"
+        assert body["matched_findings"] == [], f"Payload '{payload}' returned non-empty matched_findings"
+
+        schema = body["parsed_schema"]
+        assert all(v is None for v in schema.values()), f"Schema for payload '{payload}' must be all-None"
+
+
+def test_nl_query_empty_or_whitespace(client):
+    """
+    Regression test: Empty or whitespace-only NL queries must return 0 matched records.
+    """
+    for query_str in ["", "   ", "\t\n"]:
+        r = client.post("/api/v1/query", json={"query": query_str})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["matched_devices"] == []
+        assert body["matched_findings"] == []
+
+
+def test_nl_query_unsupported_natural_language(client):
+    """
+    Regression test: Completely unsupported natural language queries (no security filter matched)
+    must return 0 matched records rather than dumping all findings in the database.
+    """
+    r = client.post("/api/v1/query", json={"query": "what is the weather in san francisco today"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["matched_devices"] == []
+    assert body["matched_findings"] == []
+
+
+def test_nl_query_legitimate_cisco_critical_still_works(client):
+    """
+    Regression test: Legitimate bounded security queries must continue to work seamlessly.
+    """
+    hostname = _setup_cisco_device_with_findings(client)
+
+    r = client.post("/api/v1/query", json={"query": "Show me Cisco devices with open critical findings"})
+    assert r.status_code == 200
+    body = r.json()
+
+    assert body["parsed_schema"]["vendor"] == "cisco"
+    assert body["parsed_schema"]["severity"] == "CRITICAL"
+
+    assert len(body["matched_findings"]) >= 1
+    device_hostnames = [d["hostname"] for d in body["matched_devices"]]
+    assert hostname in device_hostnames
+
+
+def test_nl_query_legitimate_keyword_query(client):
+    """
+    Regression test: Safe keyword natural language search queries must extract keyword and filter safely.
+    """
+    r = client.post("/api/v1/query", json={"query": "keyword border"})
+    assert r.status_code == 200
+    body = r.json()
+
+    assert body["parsed_schema"]["keyword"] == "border"
+
+
+def test_nl_query_no_database_mutation(client):
+    """
+    Security regression test: Natural language queries must NEVER mutate the database.
+    """
+    # 1. Register a device & run audit to populate database
+    hostname = _setup_cisco_device_with_findings(client)
+
+    posture_before = client.get("/api/v1/fleet/posture").json()
+    devices_before = client.get("/api/v1/inventory/devices").json()
+
+    # 2. Attempt DDL/DML attacks via /api/v1/query
+    attacks = [
+        "DROP TABLE devices",
+        "DELETE FROM security_findings",
+        "UPDATE devices SET status='INACTIVE'",
+    ]
+    for attack in attacks:
+        client.post("/api/v1/query", json={"query": attack})
+
+    # 3. Assert state is 100% unchanged
+    posture_after = client.get("/api/v1/fleet/posture").json()
+    devices_after = client.get("/api/v1/inventory/devices").json()
+
+    assert posture_after == posture_before, "Database posture was mutated by NL query!"
+    assert devices_after == devices_before, "Database devices inventory was mutated by NL query!"
+
+
