@@ -192,6 +192,10 @@ SECURITY_POLICIES: list[SecurityPolicy] = [
 class CrossVendorIntelligenceService:
     """Service providing cross-vendor intent mapping, coverage matrix, and policy translation."""
 
+    def list_policies(self) -> list[SecurityPolicy]:
+        """Return the catalog of vendor-neutral security policies."""
+        return list(SECURITY_POLICIES)
+
     def list_intents(self) -> list[dict]:
         """Return vendor-neutral security intent catalog."""
         return [

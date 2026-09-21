@@ -60,6 +60,23 @@ def get_coverage_matrix(vendor: str | None = Query(default=None)) -> JSONRespons
     return JSONResponse(content={"coverage_matrix": matrix})
 
 
+@router.get("/api/v1/intelligence/policies", summary="List vendor-neutral security policies")
+def list_security_policies() -> JSONResponse:
+    """Return the catalog of vendor-neutral security policies available for translation."""
+    svc = CrossVendorIntelligenceService()
+    return JSONResponse(content={
+        "items": [
+            {
+                "id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "required_intent_ids": p.required_intent_ids,
+            }
+            for p in svc.list_policies()
+        ]
+    })
+
+
 @router.post("/api/v1/intelligence/policies/translate", summary="Translate security policy to vendor syntax")
 def translate_policy(req: PolicyTranslateRequest) -> JSONResponse:
     """Translate vendor-neutral security policy requirements across vendor platforms."""
