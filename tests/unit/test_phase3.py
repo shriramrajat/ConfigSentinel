@@ -231,3 +231,125 @@ def test_phase3_api_endpoints(client):
     # POST /api/v1/query
     res7 = client.post("/api/v1/query", json={"query": "Show cisco devices with Telnet enabled"})
     assert res7.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Regression tests: inventory endpoint wiring (Operations.tsx bug fix)
+# ---------------------------------------------------------------------------
+
+def test_inventory_endpoint_returns_correct_fleet_fields(client):
+    """
+    GET /api/v1/inventory/devices must return { total, devices: [...] }
+    where each device has the fields the Operations dashboard renders:
+    device_id, hostname, vendor, environment, current_posture, status.
+    """
+    # First register a device via explicit POST
+    reg = client.post(
+        "/api/v1/devices",
+        json={
+            "hostname": "RTR-PROD-01",
+            "vendor": "cisco",
+            "platform": "IOS-XE",
+            "version": "17.3",
+            "environment": "PRODUCTION",
+        },
+    )
+    assert reg.status_code == 200
+    reg_body = reg.json()
+    assert reg_body["hostname"] == "RTR-PROD-01"
+    assert reg_body["vendor"] == "cisco"
+
+    # GET /api/v1/inventory/devices must now return this device with all required fields
+    r = client.get("/api/v1/inventory/devices")
+    assert r.status_code == 200
+    body = r.json()
+
+    # Top-level shape
+    assert "total" in body, "Response must include 'total' key"
+    assert "devices" in body, "Response must include 'devices' key"
+    assert isinstance(body["devices"], list)
+    assert body["total"] == len(body["devices"])
+    assert body["total"] >= 1
+
+    # Device record must contain all fields rendered by Operations.tsx
+    dev = next((d for d in body["devices"] if d["hostname"] == "RTR-PROD-01"), None)
+    assert dev is not None, "Registered device not found in inventory response"
+
+    required_fields = ["device_id", "hostname", "vendor", "environment", "current_posture", "status"]
+    for field in required_fields:
+        assert field in dev, f"Inventory device missing required field: '{field}'"
+
+    assert dev["hostname"] == "RTR-PROD-01"
+    assert dev["vendor"] == "cisco"
+    assert dev["environment"] == "PRODUCTION"
+    assert dev["current_posture"] in ("HEALTHY", "NEEDS_ATTENTION", "CRITICAL", "UNKNOWN")
+    assert dev["status"] in ("ACTIVE", "INACTIVE", "DECOMMISSIONED")
+
+
+def test_legacy_devices_endpoint_is_not_fleet_inventory(client):
+    """
+    GET /api/v1/devices is the AUDIT STATS dashboard endpoint.
+    Its response must NOT be usable as fleet inventory:
+    - it does NOT have { total, devices } with hostname/environment/current_posture/status
+    - each item uses 'device' (not 'device_id') and has audit_count/total_fails fields
+
+    This test documents the two endpoints are intentionally separate and cannot be
+    accidentally substituted for each other (regression guard for Operations.tsx).
+    """
+    # Perform an audit so the legacy endpoint has data
+    client.post("/api/v1/audit", json={
+        "config_text": "hostname TEST-LEGACY\nline vty 0 4\n transport input telnet ssh",
+        "source": "TEST-LEGACY",
+    })
+
+    r = client.get("/api/v1/devices")
+    assert r.status_code == 200
+    body = r.json()
+
+    # Legacy endpoint returns { devices: [...] } but each item is audit-stats, NOT inventory
+    assert "devices" in body
+    assert isinstance(body["devices"], list)
+
+    # The legacy endpoint has NO 'total' key at the top level (inventory has it)
+    assert "total" not in body, "Legacy /api/v1/devices must not have a 'total' key — it is not a fleet inventory response"
+
+    if body["devices"]:
+        item = body["devices"][0]
+        # Legacy items use 'device' (audit source name), not 'device_id'
+        assert "device" in item, "Legacy items must use 'device' key (audit source name)"
+        assert "device_id" not in item, "Legacy items must NOT have 'device_id' — they are audit stats, not inventory records"
+        assert "audit_count" in item, "Legacy items must have 'audit_count' field"
+        assert "current_posture" not in item, "Legacy items must NOT have 'current_posture' — that is an inventory field"
+        assert "environment" not in item, "Legacy items must NOT have 'environment' — that is an inventory field"
+
+
+def test_fleet_posture_reflects_inventory_not_audit_history(client):
+    """
+    GET /api/v1/fleet/posture must aggregate from the Phase 3 device inventory,
+    NOT from audit history. Before any devices are registered, total_devices == 0
+    even if audits have been performed.
+    """
+    # Perform an audit (this should NOT auto-register inventory)
+    client.post("/api/v1/audit", json={
+        "config_text": "hostname AUDIT-ONLY-DEVICE\nline vty 0 4\n transport input ssh\nservice password-encryption",
+        "source": "AUDIT-ONLY-DEVICE",
+    })
+
+    # Fleet posture should still show 0 registered devices
+    r = client.get("/api/v1/fleet/posture")
+    assert r.status_code == 200
+    body = r.json()
+
+    assert "total_devices" in body
+    assert body["total_devices"] == 0, (
+        "An audit alone must NOT register a device in the Phase 3 fleet inventory. "
+        "Explicit POST /api/v1/devices registration is required."
+    )
+
+    # Now register a device explicitly
+    client.post("/api/v1/devices", json={"hostname": "FLEET-DEV-01", "vendor": "cisco"})
+
+    r2 = client.get("/api/v1/fleet/posture")
+    assert r2.status_code == 200
+    body2 = r2.json()
+    assert body2["total_devices"] == 1, "After explicit registration, fleet posture must show 1 device"

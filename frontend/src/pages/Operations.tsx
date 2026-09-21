@@ -69,14 +69,15 @@ export function Operations() {
   useEffect(() => {
     setLoading(true)
     Promise.all([
-      apiFetch<{ devices: FleetDevice[] }>('/api/v1/devices'),
+      // Phase 3 fleet inventory — NOT the legacy /api/v1/devices audit-stats endpoint
+      apiFetch<{ total: number; devices: FleetDevice[] }>('/api/v1/inventory/devices'),
       apiFetch<FleetPostureOverview>('/api/v1/fleet/posture'),
       apiFetch<{ queue: PriorityFinding[] }>('/api/v1/prioritization/queue'),
     ])
       .then(([devsRes, postRes, qRes]) => {
-        setDevices(devsRes.devices)
+        setDevices(Array.isArray(devsRes?.devices) ? devsRes.devices : [])
         setPosture(postRes)
-        setPriorityQueue(qRes.queue)
+        setPriorityQueue(Array.isArray(qRes?.queue) ? qRes.queue : [])
       })
       .catch((err) => console.error('Failed loading operations data:', err))
       .finally(() => setLoading(false))
@@ -240,7 +241,16 @@ export function Operations() {
           {loading ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--cs-text-muted)' }}>Loading fleet devices…</div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto' }}>
+              {devices.length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--cs-text-muted)', border: '1px dashed var(--cs-border)', borderRadius: '6px' }}>
+                  <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>No Registered Devices</div>
+                  <div style={{ fontSize: '0.8125rem' }}>
+                    Fleet inventory requires explicit registration via <code style={{ fontFamily: 'var(--cs-font-mono)', color: 'var(--cs-accent)' }}>POST /api/v1/devices</code>.
+                    Running an audit does not automatically create inventory records.
+                  </div>
+                </div>
+              ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--cs-border)' }}>
@@ -286,7 +296,9 @@ export function Operations() {
                   ))}
                 </tbody>
               </table>
+              )}
             </div>
+
           )}
         </div>
       )}
