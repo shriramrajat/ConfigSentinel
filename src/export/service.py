@@ -38,8 +38,18 @@ class OperationalExportService:
         writer = csv.writer(output)
         writer.writerow(["finding_id", "device_id", "control_id", "severity", "status", "occurrence_count", "first_seen", "last_seen"])
 
+        # FindingService.list_findings() returns list[dict] — use dict key access
         for f in self.finding_svc.list_findings():
-            writer.writerow([f.id, f.device_id, f.control_id, f.severity, f.status, f.occurrence_count, f.first_seen, f.last_seen])
+            writer.writerow([
+                f.get("id"),
+                f.get("device_id"),
+                f.get("control_id"),
+                f.get("severity"),
+                f.get("status"),
+                f.get("occurrence_count"),
+                f.get("first_seen"),
+                f.get("last_seen"),
+            ])
 
         return output.getvalue()
 
@@ -54,13 +64,14 @@ class OperationalExportService:
             }
             for d in self.inventory_svc.list_devices()
         ]
+        # FindingService.list_findings() returns list[dict] — use dict key access
         findings = [
             {
-                "id": f.id,
-                "device_id": f.device_id,
-                "control_id": f.control_id,
-                "severity": f.severity,
-                "status": f.status,
+                "id": f.get("id"),
+                "device_id": f.get("device_id"),
+                "control_id": f.get("control_id"),
+                "severity": f.get("severity"),
+                "status": f.get("status"),
             }
             for f in self.finding_svc.list_findings()
         ]

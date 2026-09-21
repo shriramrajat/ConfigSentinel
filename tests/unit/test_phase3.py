@@ -517,3 +517,131 @@ def test_finding_service_severity_filter_case_insensitive(temp_db):
     # All returned findings must have severity == 'CRITICAL'
     for f in upper_results:
         assert f["severity"] == "CRITICAL", f"Non-CRITICAL finding returned: {f['severity']}"
+
+
+# ---------------------------------------------------------------------------
+# Regression tests: GET /api/v1/export/findings HTTP 500 bug
+# ---------------------------------------------------------------------------
+
+def test_export_findings_empty_returns_200_with_headers(client):
+    """
+    GET /api/v1/export/findings with zero findings must return:
+    - HTTP 200 (not 500)
+    - Content-Type: text/csv
+    - Content-Disposition: attachment filename=security_findings.csv
+    - CSV with header row only (no data rows)
+
+    Root cause regression: export_findings_csv() used attribute access (f.id)
+    on dict objects returned by FindingService.list_findings(), causing AttributeError.
+    With zero findings the loop body never executes, so the empty case
+    was also broken — the header row was returned but any data would have crashed.
+    """
+    r = client.get("/api/v1/export/findings")
+    assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
+
+    ct = r.headers.get("content-type", "")
+    assert "text/csv" in ct, f"Expected text/csv content-type, got: {ct}"
+
+    cd = r.headers.get("content-disposition", "")
+    assert "attachment" in cd, f"Expected 'attachment' in Content-Disposition, got: {cd}"
+    assert "findings" in cd.lower() or ".csv" in cd, f"Expected findings CSV filename in Content-Disposition: {cd}"
+
+    lines = [line for line in r.text.strip().splitlines() if line.strip()]
+    assert len(lines) == 1, f"Expected 1 header row for empty export, got {len(lines)}"
+
+    expected_headers = ["finding_id", "device_id", "control_id", "severity", "status", "occurrence_count", "first_seen", "last_seen"]
+    header_cols = lines[0].split(",")
+    assert header_cols == expected_headers, f"CSV header mismatch. Expected {expected_headers}, got {header_cols}"
+
+
+def test_export_findings_with_data_returns_correct_csv(client):
+    """
+    GET /api/v1/export/findings with existing findings must return:
+    - HTTP 200
+    - CSV with header + data rows
+    - Each row must have 8 columns matching the header
+    - finding_id, device_id, control_id, severity, status must be non-empty
+
+    Root cause regression: f.id, f.device_id etc. raised AttributeError on dicts.
+    """
+    # Generate findings via audit
+    client.post("/api/v1/audit", json={
+        "config_text": "hostname EXPORT-TEST-RTR\nline vty 0 4\n transport input telnet ssh\nno service password-encryption",
+        "source": "EXPORT-TEST-RTR",
+    })
+
+    r = client.get("/api/v1/export/findings")
+    assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text[:300]}"
+
+    ct = r.headers.get("content-type", "")
+    assert "text/csv" in ct
+
+    lines = [line for line in r.text.strip().splitlines() if line.strip()]
+    assert len(lines) >= 2, f"Expected header + at least 1 data row, got {len(lines)} lines"
+
+    # Validate header
+    header_cols = lines[0].split(",")
+    assert "finding_id" in header_cols
+    assert "device_id" in header_cols
+    assert "control_id" in header_cols
+    assert "severity" in header_cols
+    assert "status" in header_cols
+
+    # Validate data rows
+    for row_line in lines[1:]:
+        cols = row_line.split(",")
+        assert len(cols) == len(header_cols), f"Data row column count mismatch: {row_line}"
+
+        # Key fields must be non-empty
+        row = dict(zip(header_cols, cols))
+        assert row.get("finding_id"), f"finding_id must not be empty: {row}"
+        assert row.get("device_id") == "EXPORT-TEST-RTR", f"device_id must be EXPORT-TEST-RTR: {row}"
+        assert row.get("control_id"), f"control_id must not be empty: {row}"
+        assert row.get("severity") in ("CRITICAL", "HIGH", "MEDIUM", "LOW"), f"Unexpected severity: {row}"
+        assert row.get("status") in ("OPEN", "RESOLVED", "ACKNOWLEDGED", "REOPENED"), f"Unexpected status: {row}"
+
+
+def test_export_findings_service_uses_dict_access(temp_db):
+    """
+    Unit test: OperationalExportService.export_findings_csv() must not raise
+    AttributeError when findings exist (root cause regression unit test).
+    FindingService.list_findings() returns list[dict]; the export must use
+    f.get('key') not f.key.
+    """
+    from src.export.service import OperationalExportService
+    from src.findings.service import FindingService
+    from src.api.schemas import AuditRequest
+    from src.api.service import run_audit
+
+    fs = FindingService(temp_db)
+    audit = run_audit(AuditRequest(
+        config_text="hostname RTR-EXPORT-UNIT\nline vty 0 4\n transport input telnet ssh\nno service password-encryption",
+        source="RTR-EXPORT-UNIT",
+    ), persist=True)
+    fs.sync_audit_findings(audit_response=audit)
+
+    svc = OperationalExportService(temp_db)
+
+    # Must not raise AttributeError
+    try:
+        csv_out = svc.export_findings_csv()
+    except AttributeError as e:
+        raise AssertionError(
+            f"export_findings_csv() raised AttributeError: {e}\n"
+            "FindingService.list_findings() returns list[dict]; use f.get('key') not f.key"
+        )
+
+    assert isinstance(csv_out, str), "export_findings_csv() must return str"
+
+    lines = [l for l in csv_out.strip().splitlines() if l.strip()]
+    assert len(lines) >= 2, f"Expected header + data rows, got: {lines}"
+
+    # Verify header
+    assert lines[0].startswith("finding_id,"), f"Wrong CSV header: {lines[0]}"
+
+    # Verify no empty finding_id fields
+    header = lines[0].split(",")
+    for row_line in lines[1:]:
+        row = dict(zip(header, row_line.split(",")))
+        assert row.get("finding_id"), "finding_id field must not be empty in CSV"
+        assert row.get("device_id") == "RTR-EXPORT-UNIT"
