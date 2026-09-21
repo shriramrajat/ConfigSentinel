@@ -8,9 +8,11 @@ Remediation Intelligence & Post-Fix Audit Verification Engine.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
 from src.api.schemas import AuditRequest, AuditResponse
 from src.api.service import run_audit
 from src.compliance.model import ComplianceStatus
+from src.mapping.redaction import redact_secrets
 from src.remediation.model import (
     RemediationObject,
     RemediationVerificationResult,
@@ -179,6 +181,6 @@ class RemediationService:
             current_status=cur_status,
             previous_risk_score=0.8,
             current_risk_score=0.0 if status == "FIX_VERIFIED" else 0.8,
-            evidence_note=note,
+            evidence_note=redact_secrets(note),
             verification_timestamp=now,
         )

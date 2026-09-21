@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 
 from src.api.schemas import AuditResponse
 from src.findings.db import get_findings_db, init_findings_db
+from src.mapping.redaction import redact_secrets
 
 
 class FindingService:
@@ -71,8 +72,8 @@ class FindingService:
                 if c_status_str == "fail":
                     ev_data = getattr(result, "evidence", [])
                     rem_data = getattr(result, "remediations", [])
-                    ev_json = json.dumps([e.model_dump() if hasattr(e, "model_dump") else e for e in ev_data])
-                    rem_json = json.dumps([r.model_dump() if hasattr(r, "model_dump") else r for r in rem_data])
+                    ev_json = redact_secrets(json.dumps([e.model_dump() if hasattr(e, "model_dump") else e for e in ev_data]))
+                    rem_json = redact_secrets(json.dumps([r.model_dump() if hasattr(r, "model_dump") else r for r in rem_data]))
 
                     if not row:
                         # New open finding

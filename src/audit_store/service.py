@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 
 from src.audit_store.db import get_audit_db, init_audit_db
 from src.api.schemas import AuditResponse
+from src.mapping.redaction import redact_secrets
 
 
 class AuditStoreService:
@@ -35,7 +36,7 @@ class AuditStoreService:
         """Persist an AuditResponse and return its generated ID."""
         audit_id = str(uuid.uuid4())
         created_at = datetime.now(timezone.utc).isoformat()
-        result_json = response.model_dump_json()
+        result_json = redact_secrets(response.model_dump_json())
 
         with get_audit_db(self.db_path) as conn:
             conn.execute(
@@ -100,7 +101,17 @@ class AuditStoreService:
             ).fetchone()
             if not row:
                 return None
-            return AuditResponse.model_validate_json(row["result_json"])
+            try:
+                return AuditResponse.model_validate_json(row["result_json"])
+            except Exception:
+                data = json.loads(row["result_json"])
+                if isinstance(data, dict):
+                    for res in data.get("results", []):
+                        if isinstance(res, dict):
+                            for ev in res.get("evidence", []):
+                                if isinstance(ev, dict) and ("note" not in ev or ev["note"] is None):
+                                    ev["note"] = ""
+                return AuditResponse.model_validate(data)
 
     def device_summary(self) -> list[dict]:
         """Return per-device (source_name or hostname) aggregate statistics."""

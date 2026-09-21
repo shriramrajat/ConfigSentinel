@@ -52,6 +52,13 @@ def init_findings_db(db_path: str) -> None:
             """
         )
 
+        table_info = cursor.execute("PRAGMA table_info(security_findings)").fetchall()
+        cols = {row["name"] for row in table_info}
+        if "first_seen_audit_id" not in cols:
+            cursor.execute("ALTER TABLE security_findings ADD COLUMN first_seen_audit_id TEXT")
+        if "last_seen_audit_id" not in cols:
+            cursor.execute("ALTER TABLE security_findings ADD COLUMN last_seen_audit_id TEXT")
+
         conn.commit()
 
 

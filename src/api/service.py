@@ -49,6 +49,7 @@ from src.parsers.panos import parse_panos
 
 
 from src.mapping.service import SemanticMappingService
+from src.mapping.redaction import redact_secrets
 
 from src.mapping.model import SemanticMapping, UnknownPattern
 from src.risk.engine import compute_risk
@@ -302,10 +303,10 @@ def _convert_result(result: ComplianceResult) -> ComplianceResultSchema:
             EvidenceSchema(
                 control_id=e.control_id,
                 section_name=e.section_name,
-                raw_lines=list(e.raw_lines),
-                observed=e.observed,
+                raw_lines=[redact_secrets(line) for line in e.raw_lines],
+                observed=redact_secrets(e.observed) if e.observed else None,
                 expected=e.expected,
-                note=e.note,
+                note=redact_secrets(e.note) if e.note else "",
                 line_number=e.line_number,
             )
             for e in result.evidence
@@ -313,8 +314,8 @@ def _convert_result(result: ComplianceResult) -> ComplianceResultSchema:
         remediations=[
             RemediationSchema(
                 vendor=r.vendor,
-                guidance=r.guidance,
-                config_hint=r.config_hint,
+                guidance=redact_secrets(r.guidance) if r.guidance else r.guidance,
+                config_hint=redact_secrets(r.config_hint) if r.config_hint else r.config_hint,
             )
             for r in result.remediations
         ],

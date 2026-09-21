@@ -31,7 +31,7 @@ class OperationalExportService:
         for d in self.inventory_svc.list_devices():
             writer.writerow([d.device_id, d.hostname, d.vendor, d.platform, d.version, d.environment, d.current_posture, d.status, d.last_seen])
 
-        return output.getvalue()
+        return redact_secrets(output.getvalue())
 
     def export_findings_csv(self) -> str:
         output = io.StringIO()
@@ -51,7 +51,7 @@ class OperationalExportService:
                 f.get("last_seen"),
             ])
 
-        return output.getvalue()
+        return redact_secrets(output.getvalue())
 
     def export_fleet_json(self) -> str:
         devices = [

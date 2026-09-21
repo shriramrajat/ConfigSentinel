@@ -16,6 +16,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from src.api.schemas import AuditResponse
+from src.mapping.redaction import redact_secrets
 
 
 def generate_pdf_report(audit: AuditResponse, audit_id: str) -> bytes:
@@ -153,7 +154,7 @@ def generate_pdf_report(audit: AuditResponse, audit_id: str) -> bytes:
             Paragraph(r.severity.upper(), cell_style),
             Paragraph(r.status.upper(), cell_style),
             Paragraph(f"{r.risk_score:.1f} ({r.risk_level})", cell_style),
-            Paragraph(combined_detail, cell_style),
+            Paragraph(redact_secrets(combined_detail), cell_style),
         ])
 
     results_table = Table(table_data, colWidths=[65, 95, 55, 55, 65, 185])

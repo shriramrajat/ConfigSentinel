@@ -18,6 +18,7 @@ from src.api.schemas import AuditRequest
 from src.api.service import run_audit
 from src.baselines.model import BaselineComparisonResult, BaselineRecord, BaselineStatus
 from src.drift.engine import detect_config_drift
+from src.mapping.redaction import redact_secrets
 
 
 def init_baselines_db(db_path: str) -> None:
@@ -167,13 +168,13 @@ class BaselineService:
 
         drift_items = detect_config_drift(norm_base, norm_curr)
 
-        added = [f"{d.key} ({d.new_value or ''})" for d in drift_items if d.change_type == "ADDED"]
-        removed = [f"{d.key} ({d.old_value or ''})" for d in drift_items if d.change_type == "REMOVED"]
+        added = [redact_secrets(f"{d.key} ({d.new_value or ''})") for d in drift_items if d.change_type == "ADDED"]
+        removed = [redact_secrets(f"{d.key} ({d.old_value or ''})") for d in drift_items if d.change_type == "REMOVED"]
         modified = [
             {
                 "directive": d.key,
-                "old_value": d.old_value or "",
-                "new_value": d.new_value or "",
+                "old_value": redact_secrets(d.old_value or ""),
+                "new_value": redact_secrets(d.new_value or ""),
             }
             for d in drift_items
             if d.change_type == "MODIFIED"

@@ -30,10 +30,15 @@ _SECRET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     ),
     # Cisco / Arista / EOS enable secret / password hashes (type 5, 8, 9, 7)
     (
-        re.compile(r"(enable\s+(?:secret|password)\s+(?:\d+\s+)?)[^\s\"'\\]+", re.IGNORECASE),
+        re.compile(r"(\benable\s+(?:secret|password)\s+(?:\d+\s+)?)[^\s\"'\\]+", re.IGNORECASE),
         r"\1[REDACTED_SECRET]",
     ),
-    # Generic password / secret lines: "password 7 0822455D0A16", "user foo password bar"
+    # User credential definitions: "username admin password SuperSecret123", "user foo secret bar"
+    (
+        re.compile(r"(\b(?:username|user)\s+[^\s]+\s+(?:privilege\s+\d+\s+)?(?:secret|password)\s+(?:\d+\s+)?)[^\s\"'\\]+", re.IGNORECASE),
+        r"\1[REDACTED_SECRET]",
+    ),
+    # Generic password / secret lines: "password 7 0822455D0A16", "auth-pass secret"
     (
         re.compile(r"(\b(?:password|secret|preshared-key|pre-shared-key|auth-pass|key|md5-key)\s+(?:\d+\s+)?)[^\s\"'\\]+", re.IGNORECASE),
         r"\1[REDACTED_SECRET]",
@@ -52,14 +57,23 @@ _SECRET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         re.compile(r"\$(?:1|5|6|8|9)\$[a-zA-Z0-9./]+\$[a-zA-Z0-9./]+"),
         "[REDACTED_HASH]",
     ),
-    # API keys / Bearer tokens / generic tokens
+    # Authorization headers & Bearer tokens
     (
-        re.compile(r"(Bearer\s+)[a-zA-Z0-9_\-\.]{10,}", re.IGNORECASE),
+        re.compile(r"(Authorization:\s*(?:Bearer|Basic)?\s*)[a-zA-Z0-9_\-\.]{6,}", re.IGNORECASE),
         r"\1[REDACTED_TOKEN]",
     ),
     (
-        re.compile(r"(\b(?:api[_-]?key|token|auth[_-]?token|access[_-]?key)\s*[:=]\s*)[^\s]+", re.IGNORECASE),
+        re.compile(r"(Bearer\s+)[a-zA-Z0-9_\-\.]{6,}", re.IGNORECASE),
         r"\1[REDACTED_TOKEN]",
+    ),
+    # Key-value pairs in JSON/YAML or API payloads: "secret_key": "cisco123", "password": "...", "token": "..."
+    (
+        re.compile(r"([\"']?(?:api[_-]?key|secret[_-]?key|token|auth[_-]?token|access[_-]?key|credential|password|secret)[\"']?\s*[:=]\s*[\"'])[^\s\"']+([\"'])", re.IGNORECASE),
+        r"\1[REDACTED_SECRET]\2",
+    ),
+    (
+        re.compile(r"(\b(?:api[_-]?key|secret[_-]?key|token|auth[_-]?token|access[_-]?key|credential)\s*[:=]\s*)[^\s\"',}]+", re.IGNORECASE),
+        r"\1[REDACTED_SECRET]",
     ),
 ]
 

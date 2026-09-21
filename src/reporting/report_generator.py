@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import html
 from src.api.schemas import AuditResponse
+from src.mapping.redaction import redact_secrets
 
 
 def generate_html_report(audit: AuditResponse, audit_id: str) -> str:
@@ -56,7 +57,7 @@ def generate_html_report(audit: AuditResponse, audit_id: str) -> str:
 
     table_body = "\n".join(rows)
 
-    return f"""<!DOCTYPE html>
+    html_out = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -113,3 +114,4 @@ def generate_html_report(audit: AuditResponse, audit_id: str) -> str:
 </body>
 </html>
 """
+    return redact_secrets(html_out)
