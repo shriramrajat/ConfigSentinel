@@ -183,43 +183,79 @@ class NaturalLanguageQueryEngine:
                 "matched_findings": [],
             }
 
-        # Safe parameterized execution via existing deterministic services
-        devices = self.inventory_svc.list_devices(
+        # 1. Fetch inventory devices matching filters
+        inventory_devices = self.inventory_svc.list_devices(
             vendor=parsed_schema.vendor,
             environment=parsed_schema.environment,
             search=parsed_schema.keyword,
         )
 
+        # 2. Build set of valid device identifiers for vendor filter (from inventory AND audit history)
+        vendor_dev_ids: set[str] = set()
+        if parsed_schema.vendor:
+            from src.audit_store.service import AuditStoreService
+            audit_store = AuditStoreService(db_path=self.inventory_svc.db_path)
+            for d_sum in audit_store.device_summary():
+                if d_sum.get("vendor", "").lower() == parsed_schema.vendor.lower():
+                    dev_name = d_sum.get("device")
+                    if dev_name:
+                        vendor_dev_ids.add(dev_name)
+
+            for d in inventory_devices:
+                vendor_dev_ids.add(d.device_id)
+                vendor_dev_ids.add(d.hostname)
+
+        # 3. Fetch persistent findings using parameterized service method
         findings = self.finding_svc.list_findings(
             severity=parsed_schema.severity,
             status="OPEN" if parsed_schema.status in ("FAIL", "OPEN") else None,
         )
 
         if parsed_schema.vendor:
-            findings = [f for f in findings if self._finding_matches_vendor(f, parsed_schema.vendor, devices)]
+            findings = [
+                f for f in findings
+                if f.get("device_id") in vendor_dev_ids or self._finding_matches_vendor(f, parsed_schema.vendor, inventory_devices)
+            ]
 
         if parsed_schema.control_id:
             findings = [f for f in findings if f.get("control_id") == parsed_schema.control_id]
 
-        matched_device_ids = {f.get("device_id") for f in findings}
+        matched_device_ids = {f.get("device_id") for f in findings if f.get("device_id")}
 
-        # Filter devices to those matching findings if specific control/severity/status was requested
-        if parsed_schema.control_id or parsed_schema.severity or parsed_schema.status:
-            devices = [d for d in devices if d.device_id in matched_device_ids or d.hostname in matched_device_ids]
+        # 4. Construct matched devices list
+        matched_devices_list = []
+        seen_device_ids = set()
 
-        return {
-            "query": nl_query,
-            "parsed_schema": schema_dict,
-            "matched_devices": [
-                {
+        # Add registered inventory devices matching findings or active filters
+        for d in inventory_devices:
+            if not (parsed_schema.control_id or parsed_schema.severity or parsed_schema.status) or d.device_id in matched_device_ids or d.hostname in matched_device_ids:
+                matched_devices_list.append({
                     "device_id": d.device_id,
                     "hostname": d.hostname,
                     "vendor": d.vendor,
                     "environment": d.environment,
                     "posture": d.current_posture,
-                }
-                for d in devices
-            ],
+                })
+                seen_device_ids.add(d.device_id)
+                seen_device_ids.add(d.hostname)
+
+        # Add fallback device representations for audited devices that have matching findings but aren't in Phase 3 inventory table
+        for dev_id in matched_device_ids:
+            if dev_id not in seen_device_ids:
+                vendor_val = parsed_schema.vendor or "cisco"
+                matched_devices_list.append({
+                    "device_id": dev_id,
+                    "hostname": dev_id,
+                    "vendor": vendor_val,
+                    "environment": parsed_schema.environment or "PRODUCTION",
+                    "posture": "NEEDS_ATTENTION",
+                })
+                seen_device_ids.add(dev_id)
+
+        return {
+            "query": nl_query,
+            "parsed_schema": schema_dict,
+            "matched_devices": matched_devices_list,
             "matched_findings": [
                 {
                     "id": f.get("id"),
@@ -240,4 +276,5 @@ class NaturalLanguageQueryEngine:
             if (d.device_id == dev_id or d.hostname == dev_id) and d.vendor.lower() == vendor.lower():
                 return True
         return False
+
 
