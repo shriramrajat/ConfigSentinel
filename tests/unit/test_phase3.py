@@ -645,3 +645,64 @@ def test_export_findings_service_uses_dict_access(temp_db):
         row = dict(zip(header, row_line.split(",")))
         assert row.get("finding_id"), "finding_id field must not be empty in CSV"
         assert row.get("device_id") == "RTR-EXPORT-UNIT"
+
+
+def test_audit_persistence_persist_true(client):
+    """
+    Regression test: POST /api/v1/audit (persist=True by default) must write an
+    audit record to the persistence store so that GET /api/v1/audits returns it.
+    """
+    initial_r = client.get("/api/v1/audits")
+    assert initial_r.status_code == 200
+    initial_total = initial_r.json()["total"]
+
+    audit_r = client.post("/api/v1/audit", json={
+        "config_text": "hostname PERSIST-TEST-01\nline vty 0 4\n transport input ssh\nservice password-encryption",
+        "source_name": "PERSIST-TEST-01"
+    })
+    assert audit_r.status_code == 200
+
+    history_r = client.get("/api/v1/audits")
+    assert history_r.status_code == 200
+    body = history_r.json()
+
+    assert body["total"] == initial_total + 1
+    items = body["items"]
+    assert len(items) >= 1
+
+    latest_item = items[0]  # Reverse-chronological order
+    assert latest_item["source_name"] == "PERSIST-TEST-01" or latest_item["hostname"] == "PERSIST-TEST-01"
+    assert latest_item["vendor"] == "cisco"
+    assert "id" in latest_item and latest_item["id"]
+
+
+def test_audit_persistence_persist_false_isolation():
+    """
+    Regression test: run_audit with persist=False (used by What-If Simulator,
+    Baseline evaluation, and Remediation verification) MUST NOT write to audit history.
+    """
+    import tempfile, os
+    from src.api.schemas import AuditRequest
+    from src.api.service import run_audit
+    from src.audit_store.service import AuditStoreService
+
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    try:
+        os.environ["AUDIT_DB_PATH"] = path
+        store = AuditStoreService(db_path=path)
+        assert store.count_audits() == 0
+
+        # Persist = False
+        resp = run_audit(AuditRequest(config_text="hostname SIM-DEVICE-01\nline vty 0 4\n transport input telnet ssh"), persist=False)
+        assert resp is not None
+        assert store.count_audits() == 0, "run_audit(persist=False) must NOT save to audit_store"
+
+        # Persist = True
+        resp2 = run_audit(AuditRequest(config_text="hostname PERSIST-DEVICE-01\nline vty 0 4\n transport input ssh"), persist=True)
+        assert resp2 is not None
+        assert store.count_audits() == 1, "run_audit(persist=True) MUST save to audit_store"
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
+

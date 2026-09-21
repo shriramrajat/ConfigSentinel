@@ -7,6 +7,8 @@ services:
     envVars:
       - key: MAPPINGS_DB_PATH
         value: /var/data/mappings.db
+      - key: AUDIT_DB_PATH
+        value: /var/data/audits.db
       - key: AI_API_KEY
         sync: false
       - key: AI_MODEL
