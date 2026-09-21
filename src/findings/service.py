@@ -154,7 +154,7 @@ class FindingService:
             params.append(status.upper())
         if severity:
             query += " AND severity = ?"
-            params.append(severity.lower())
+            params.append(severity.upper())
 
         query += " ORDER BY last_seen DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
@@ -181,7 +181,7 @@ class FindingService:
             params.append(status.upper())
         if severity:
             query += " AND severity = ?"
-            params.append(severity.lower())
+            params.append(severity.upper())
 
         with get_findings_db(self.db_path) as conn:
             row = conn.execute(query, params).fetchone()

@@ -353,3 +353,167 @@ def test_fleet_posture_reflects_inventory_not_audit_history(client):
     assert r2.status_code == 200
     body2 = r2.json()
     assert body2["total_devices"] == 1, "After explicit registration, fleet posture must show 1 device"
+
+
+# ---------------------------------------------------------------------------
+# Regression tests: NL query severity case-mismatch bug
+# ---------------------------------------------------------------------------
+
+def _setup_cisco_device_with_findings(client) -> str:
+    """
+    Helper: register a Cisco device, run an audit with Telnet/no-encryption
+    (generates CRITICAL + other findings), sync findings.
+    Returns the registered device hostname.
+    """
+    hostname = "OPS-TEST-CISCO-NL"
+
+    # Register inventory record
+    reg = client.post("/api/v1/devices", json={
+        "hostname": hostname,
+        "vendor": "cisco",
+        "environment": "LAB",
+    })
+    assert reg.status_code == 200
+
+    # Run audit (generates open findings including CRITICAL TLN-001)
+    audit_r = client.post("/api/v1/audit", json={
+        "config_text": (
+            "hostname " + hostname + "\n"
+            "line vty 0 4\n transport input telnet ssh\n"
+            "no service password-encryption"
+        ),
+        "source": hostname,
+    })
+    assert audit_r.status_code == 200
+
+    return hostname
+
+
+def test_nl_query_cisco_critical_open_returns_device(client):
+    """
+    Root cause regression: severity stored as UPPERCASE in DB, but FindingService
+    was filtering with severity.lower() causing 'CRITICAL' != 'critical' mismatch.
+    After the fix, vendor=cisco + severity=CRITICAL + status=FAIL must match the device.
+    """
+    hostname = _setup_cisco_device_with_findings(client)
+
+    r = client.post("/api/v1/query", json={
+        "query": "Show me Cisco devices with open critical findings"
+    })
+    assert r.status_code == 200
+    body = r.json()
+
+    schema = body["parsed_schema"]
+    assert schema["vendor"] == "cisco"
+    assert schema["severity"] == "CRITICAL"
+    assert schema["status"] == "FAIL"
+
+    assert len(body["matched_findings"]) >= 1, (
+        "Expected at least one CRITICAL finding for the cisco device, got 0. "
+        "This is the severity case-mismatch regression."
+    )
+    assert len(body["matched_devices"]) >= 1, (
+        f"Expected device '{hostname}' to appear in matched_devices, got 0."
+    )
+    device_hostnames = [d["hostname"] for d in body["matched_devices"]]
+    assert hostname in device_hostnames, f"Expected '{hostname}' in matched_devices: {device_hostnames}"
+
+
+def test_nl_query_cisco_fail_returns_device(client):
+    """
+    vendor=cisco + status=FAIL (no severity filter) must return the cisco device
+    that has open failing findings.
+    """
+    hostname = _setup_cisco_device_with_findings(client)
+
+    r = client.post("/api/v1/query", json={
+        "query": "Show cisco devices with failing findings"
+    })
+    assert r.status_code == 200
+    body = r.json()
+
+    schema = body["parsed_schema"]
+    assert schema["vendor"] == "cisco"
+    assert schema["status"] == "FAIL"
+    assert schema["severity"] is None
+
+    assert len(body["matched_findings"]) >= 1
+    device_hostnames = [d["hostname"] for d in body["matched_devices"]]
+    assert hostname in device_hostnames
+
+
+def test_nl_query_critical_only_returns_device(client):
+    """
+    severity=CRITICAL alone (no vendor filter) must return devices with
+    critical open findings. Tests that the severity filter works independently.
+    """
+    hostname = _setup_cisco_device_with_findings(client)
+
+    r = client.post("/api/v1/query", json={
+        "query": "Show me critical findings"
+    })
+    assert r.status_code == 200
+    body = r.json()
+
+    schema = body["parsed_schema"]
+    assert schema["severity"] == "CRITICAL"
+
+    assert len(body["matched_findings"]) >= 1, "CRITICAL findings must be returned after fix"
+    device_hostnames = [d["hostname"] for d in body["matched_devices"]]
+    assert hostname in device_hostnames
+
+
+def test_nl_query_no_matching_findings_returns_zero(client):
+    """
+    A query for a vendor that has no registered devices with findings must
+    return zero matched devices. Ensures the fix does not produce false positives.
+    """
+    r = client.post("/api/v1/query", json={
+        "query": "Show juniper devices with critical findings"
+    })
+    assert r.status_code == 200
+    body = r.json()
+
+    schema = body["parsed_schema"]
+    assert schema["vendor"] == "juniper"
+    assert schema["severity"] == "CRITICAL"
+
+    # No juniper devices registered in this isolated test DB
+    assert len(body["matched_devices"]) == 0, "No juniper devices registered, must return zero"
+
+
+def test_finding_service_severity_filter_case_insensitive(temp_db):
+    """
+    Unit regression: FindingService.list_findings(severity='CRITICAL') and
+    list_findings(severity='critical') must both return the same results.
+    Severity is stored UPPERCASE; the filter must normalize to uppercase before querying.
+    """
+    from src.findings.service import FindingService
+    from src.api.schemas import AuditRequest
+    from src.api.service import run_audit
+
+    fs = FindingService(temp_db)
+    audit = run_audit(AuditRequest(
+        config_text="hostname RTR-SEV-TEST\nline vty 0 4\n transport input telnet ssh\nno service password-encryption",
+        source="RTR-SEV-TEST",
+    ), persist=True)
+    fs.sync_audit_findings(audit_response=audit)
+
+    # Confirm findings were synced
+    all_findings = fs.list_findings()
+    assert len(all_findings) >= 1
+
+    # Both cases must return the same count
+    upper_results = fs.list_findings(severity="CRITICAL")
+    lower_results = fs.list_findings(severity="critical")
+    mixed_results = fs.list_findings(severity="Critical")
+
+    assert len(upper_results) == len(lower_results) == len(mixed_results), (
+        f"Severity filter must be case-insensitive: "
+        f"CRITICAL={len(upper_results)}, critical={len(lower_results)}, Critical={len(mixed_results)}"
+    )
+    assert len(upper_results) >= 1, "Expected at least one CRITICAL finding from TLN-001 audit"
+
+    # All returned findings must have severity == 'CRITICAL'
+    for f in upper_results:
+        assert f["severity"] == "CRITICAL", f"Non-CRITICAL finding returned: {f['severity']}"
